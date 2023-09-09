@@ -91,7 +91,7 @@ auto groupedBool = testGroup->add(Topic("bool"), &testStruct.tsBool)->setFormat(
 auto testGroup2 = testGroup->add(Topic("group2"));
 auto groupedInt2 = testGroup2->add(Topic("int"), -1);
 
-char* charptr = "0123456789";
+char* charptr = (char*)"0123456789";
 auto groupedString2 = testGroup2->add(Topic("charptr"), charptr);
 
 int intArray[] = {100, 50, 25, 12, 6, 3, 1, 0};
@@ -100,7 +100,7 @@ auto groupedIntArray = testGroup2->add(Topic("intArray"), intArray, sizeof(intAr
 bool boolArray[] = {true, false, true, true};
 auto groupedBoolArray = testGroup2->add(Topic("boolArray"), boolArray, sizeof(boolArray) / sizeof(bool))->setFormat(SimpleMQTT::BoolFormat::TRUEFALSE);
 
-char* testCharArray = "Test Char Array";
+char* testCharArray = (char*)"Test Char Array";
 auto testCharArrayValue = mqttClient.add(Topic("testCharArray"), testCharArray, strlen(testCharArray))->setSettable(true);
 
 String testString("Test String");
