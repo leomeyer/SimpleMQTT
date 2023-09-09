@@ -49,6 +49,7 @@ protected:
   MQTTValue<String>* statusTopic = nullptr;
   MQTTWill* mqttWill = nullptr;
   MQTT_CALLBACK_SIGNATURE = nullptr;
+  State previousState = State::DISCONNECTED;
 
   SimpleMQTTClient* getClient() {
     return this;
@@ -271,6 +272,11 @@ public:
 
     return state() == MQTT_CONNECTED ? State::CONNECTED : State::DISCONNECTED;
   };
+  
+  State handle() {
+	  previousState = handle(previousState);
+	  return previousState;
+  }
 
   bool payloadReceived(char* topic, uint8_t* payload, unsigned int length) {
     char* p = (char*)alloca(length + 1);
