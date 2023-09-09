@@ -12,7 +12,7 @@ extern "C" {
 // #define SIMPLEMQTT_ERROR_SERIAL Serial
 // #define SIMPLEMQTT_DEBUG_MEMORY true
 
-#include "library/SimpleMQTT.h"
+#include "SimpleMQTT.h"
 using State = SimpleMQTTClient::State;
 
 

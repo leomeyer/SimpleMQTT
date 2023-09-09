@@ -70,27 +70,27 @@ namespace SimpleMQTT {
     OK = 0
   };
 
-  #include "Formats.h"
+  #include "src/Formats.h"
 
-  #include "Internal.h"
+  #include "src/Internal.h"
 
-  #include "MQTTTopic.h"
+  #include "src/MQTTTopic.h"
 
-  #include "MQTTValue.h"
+  #include "src/MQTTValue.h"
 
-  #include "MQTTVariable.h"
+  #include "src/MQTTVariable.h"
 
-  #include "MQTTReference.h"
+  #include "src/MQTTReference.h"
 
-  #include "MQTTArray.h"
+  #include "src/MQTTArray.h"
 
-  #include "MQTTGroup.h"
+  #include "src/MQTTGroup.h"
 
-  #include "MQTTWill.h"
+  #include "src/MQTTWill.h"
 
-  #include "MQTTClient.h"
+  #include "src/MQTTClient.h"
 
-  #include "MQTTImpl.h"
+  #include "src/MQTTImpl.h"
 
 } // namespace SimpleMQTT
 
