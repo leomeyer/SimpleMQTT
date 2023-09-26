@@ -1,7 +1,9 @@
 /////////////////////////////////////////////////////////////////////
-// MQTTWill
-// Special will topic with a predefined disconnect message.
+// MQTTWill: Special will topic with a predefined disconnect message.
 // Add to SimpleMQTTClient (setWill) before connecting.
+// Copyright (c) Leo Meyer, leo@leomeyer.de
+// Licensed under the MIT license.
+// https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
 class MQTTWill : public MQTTReference<String> {
@@ -15,7 +17,7 @@ protected:
 
 public:
   MQTTWill(__internal::_Topic aTopic, const char* aMessage, uint8_t qos = 0, bool retained = true)
-    : MQTTReference<String>(nullptr, aTopic, (qos & 3) | (retained ? RETAINED_SETMASK : 0), str), message(aMessage) {};
+    : MQTTReference<String>(nullptr, aTopic, (qos & 3) | AUTO_PUBLISH_SETMASK | (retained ? RETAINED_SETMASK : 0), str), message(aMessage) {};
 
   const char* getMessage() { return message; }
 

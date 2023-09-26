@@ -1,0 +1,26 @@
+{
+  "name": "SimpleMQTT",
+  "keywords": "esp8266 esp32 esp espressif mqtt iot easy simple",
+  "description": "An ESP8266/ESP32 library to simplify MQTT integration for IoT devices.",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/leomeyer/SimpleMQTT.git"
+  },
+  "authors": [
+    {
+      "name": "Leo Meyer",
+      "email": "leo@leomeyer.de",
+      "maintainer": true
+    }
+  ],
+  "dependencies": [
+    {
+      "name": "PubSubClient",
+      "authors": "Nicholas O'Leary",
+      "frameworks": "arduino"
+    }
+  ],
+  "version": "1.0.0",
+  "frameworks": "arduino",
+  "platforms": "*"
+}

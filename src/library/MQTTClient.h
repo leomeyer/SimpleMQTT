@@ -1,22 +1,11 @@
 /////////////////////////////////////////////////////////////////////
 // SimpleMQTTClient
+// Copyright (c) Leo Meyer, leo@leomeyer.de
+// Licensed under the MIT license.
+// https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
-enum class MQTTConfig : uint8_t {
-  REQUESTABLE = MQTTTopic::REQUESTABLE_SETMASK,
-  SETTABLE = MQTTTopic::SETTABLE_SETMASK,
-  AUTO_PUBLISH = MQTTTopic::AUTO_PUBLISH_SETMASK,
-  RETAINED = MQTTTopic::RETAINED_SETMASK
-};
-
-inline MQTTConfig operator|(MQTTConfig a, MQTTConfig b) {
-  return static_cast<MQTTConfig>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-};
-inline MQTTConfig operator+(MQTTConfig a, MQTTConfig b) {
-  return static_cast<MQTTConfig>(static_cast<uint8_t>(a) | static_cast<uint8_t>(b));
-};
-
-
+// The SimpleMQTT client class that is used to define topics and handle MQTT communication.
 class SimpleMQTTClient : public PubSubClient, public MQTTGroup {
 friend class MQTTTopic;
 
@@ -38,8 +27,6 @@ public:
   };
 
 protected:
-  static MQTTConfig DEFAULT_CONFIG;
-
   const char* mqttClientName;
   const char* mqttHost;
   int mqttPort = 1883;
@@ -50,17 +37,16 @@ protected:
   MQTTWill* mqttWill = nullptr;
   MQTT_CALLBACK_SIGNATURE = nullptr;
   State previousState = State::DISCONNECTED;
+  TopicOrder globalTopicOrder = DEFAULT_TOPIC_ORDER;
+
+  inline String type() const override { return String("$"); };
+
+  MQTTGroup& parent() override {
+    return *this;
+  };
 
   SimpleMQTTClient* getClient() {
     return this;
-  };
-
-  virtual String applyRequestPattern(MQTTTopic* value) {
-    return value->getFullTopic() + "/get";
-  };
-
-  virtual String applySetPattern(MQTTTopic* value) {
-    return value->getFullTopic() + "/set";
   };
 
   virtual bool connect() {
@@ -71,37 +57,58 @@ protected:
   };
 
 public:
+  SimpleMQTTClient(Client& client, const char* clientName, const char* host, const char* user = nullptr, const char* password = nullptr)
+    : PubSubClient(client), MQTTGroup(nullptr, __internal::_Topic(clientName), (uint8_t)DEFAULT_CONFIG),
+      mqttClientName(clientName), mqttHost(host), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
+
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, __internal::_Topic topic, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)DEFAULT_CONFIG),
-      mqttClientName(clientName), mqttHost(host), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
+
+  SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, const char* user = nullptr, const char* password = nullptr)
+    : PubSubClient(client), MQTTGroup(nullptr, __internal::_Topic(clientName), (uint8_t)DEFAULT_CONFIG),
+      mqttClientName(clientName), mqttHost(host), mqttPort(port), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, __internal::_Topic topic, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)DEFAULT_CONFIG),
-      mqttClientName(clientName), mqttHost(host), mqttPort(port), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), mqttPort(port), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, __internal::_Topic topic, MQTTConfig config, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)config),
-      mqttClientName(clientName), mqttHost(host), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
-  SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, __internal::_Topic topic, MQTTConfig config, const char* user = nullptr, const char* password = nullptr)
-    : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)config),
-      mqttClientName(clientName), mqttHost(host), mqttPort(port), mqttUser(user), mqttPassword(password) {};
+  SimpleMQTTClient(Client& client, const char* clientName, const char* host, MQTTConfig config, const char* user = nullptr, const char* password = nullptr)
+    : PubSubClient(client), MQTTGroup(nullptr, __internal::_Topic(clientName), (uint8_t)config),
+      mqttClientName(clientName), mqttHost(host), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
+
+  SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, MQTTConfig config, const char* user = nullptr, const char* password = nullptr)
+    : PubSubClient(client), MQTTGroup(nullptr, __internal::_Topic(clientName), (uint8_t)config),
+      mqttClientName(clientName), mqttHost(host), mqttPort(port), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, __internal::_Topic topic, bool clean, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)DEFAULT_CONFIG),
-      mqttClientName(clientName), mqttHost(host), cleanSession(clean), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), cleanSession(clean), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, __internal::_Topic topic, bool clean, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)DEFAULT_CONFIG),
-      mqttClientName(clientName), mqttHost(host), mqttPort(port), cleanSession(clean), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), mqttPort(port), cleanSession(clean), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, __internal::_Topic topic, MQTTConfig config, bool clean, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)config),
-      mqttClientName(clientName), mqttHost(host), cleanSession(clean), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), cleanSession(clean), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, __internal::_Topic topic, MQTTConfig config, bool clean, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)config),
-      mqttClientName(clientName), mqttHost(host), mqttPort(port), cleanSession(clean), mqttUser(user), mqttPassword(password) {};
+      mqttClientName(clientName), mqttHost(host), mqttPort(port), cleanSession(clean), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
+
+  TopicOrder getTopicOrder() override {
+    return globalTopicOrder;
+  };
+
+  SimpleMQTTClient& setTopicOrder(TopicOrder order) override {
+    globalTopicOrder = order;
+    return *this;
+  };
 
   MQTTWill* setWill(MQTTWill* will) {
     mqttWill = will;
@@ -109,9 +116,9 @@ public:
       return nullptr;
     if (!will->isTopicValid())
       return will;
-    will->parent = this;
+    will->_parent = this;
     return will;
-  }
+  };
 
   virtual String getFinalTopic(const String& topic) {
     if (topic.startsWith("/"))
@@ -122,12 +129,12 @@ public:
 
   virtual void setCustomCallback(MQTT_CALLBACK_SIGNATURE) {
     this->callback = callback;
-  }
+  };
 
   MQTTValue<String>* setStatusTopic(__internal::_Topic aTopic) {
     if (statusTopic == nullptr && aTopic.isValid()) {
-      statusTopic = add<String>(aTopic)
-                        ->setAutoPublish(true);
+      statusTopic = new MQTTValue<String>(this, aTopic, getConfig());
+      statusTopic->setSettable(false).setAutoPublish(true);
     }
     return statusTopic;
   };
@@ -145,18 +152,18 @@ public:
         else if (code == 0) return String() + F("OK");
     }
     return String();
-  }
+  };
 
   virtual bool setStatus(int8_t code, String topic, String message = {}) {
-    String msg = getCodeText(code) + (message.isEmpty() ? "" : F(": ") + message);
+    String msg = getCodeText(code) + (message == "" ? "" : F(": ") + message);
     if (code < 0) {
-      SIMPLEMQTT_ERROR(PSTR("Error %d: %s\n"), (int)code, msg.c_str());
+      SIMPLEMQTT_ERROR(PSTR("Status Error %d: %s (%s)\n"), (int)code, msg.c_str(), topic.c_str());
     } else {
-      SIMPLEMQTT_DEBUG(PSTR("Message %d: %s\n"), (int)code, msg.c_str());
+      SIMPLEMQTT_DEBUG(PSTR("Status Code %d: %s (%s)\n"), (int)code, msg.c_str(), topic.c_str());
     }
     if (statusTopic == nullptr)
       return false;
-    // status can only be set if the last message has been published
+    // don't overwrite yet unpublished status
     if (statusTopic->needsPublish())
       return false;
     msg.replace("\"", "\\\"");
@@ -165,16 +172,16 @@ public:
     String json(F("{\"code\":"));
     json.concat(code);
     if (code < 0)
-      json.concat(F("\",\"error\":\""));
+      json.concat(F(",\"error\":\""));
     else
       json.concat(F(",\"message\":\""));
     json.concat(msg);
-    if (!topic.isEmpty()) {
+    if (topic != "") {
       json.concat(F("\",\"topic\":\""));
       json.concat(topic);
     }
     json.concat(F("\"}"));
-    statusTopic->set(json, true);
+    statusTopic->set(json);
     return true;
   };
 
@@ -190,6 +197,18 @@ public:
     if (value == __internal::INVALID_PTR)
       return false;
     String fullTopic = value->getFullTopic();
+    // top-level-topics are only published if their publish-flag is set
+    // to avoid infinite publish/set loop
+    if (fullTopic.startsWith("/") && !value->needsPublish())
+      return false;
+    // apply default topic pattern for non-top-level topics
+    if (!fullTopic.startsWith("/")) {
+      String pattern = value->getTopicPattern();
+      if (pattern == "")
+        pattern = DEFAULT_TOPIC_PATTERN;
+      pattern.replace("%s", fullTopic);
+      fullTopic = pattern;
+    }
     String payload = value->getPayload();
     SIMPLEMQTT_DEBUG(PSTR("Publishing%s topic: '%s' (%s) with payload '%s'\n"), (value->isRetained() ? " retained" : ""), fullTopic.c_str(), value->getConfigStr().c_str(), payload.c_str());
     return publish(fullTopic.c_str(), payload.c_str(), value->isRetained());
@@ -232,6 +251,11 @@ public:
         }
       });
 
+#if SIMPLEMQTT_JSON_BUFFERSIZE > 0
+      // increase buffer size to allow for larger Json messages
+      setBufferSize(SIMPLEMQTT_JSON_BUFFERSIZE);
+#endif
+
       // try to connect
       SIMPLEMQTT_DEBUG(PSTR("SimpleMQTTClient connecting...\n"));
       if (connect()) {
@@ -246,37 +270,39 @@ public:
         return State::DISCONNECTED;
       }
     } else
-    // connected, perform main processing
-    if (connected() && state() != MQTT_CONNECTION_LOST) {
-      // PubSubClient processing
-      loop();
+      // connected, perform main processing
+      if (connected() && state() != MQTT_CONNECTION_LOST) {
+        // PubSubClient processing
+        loop();
 
-      if (previousState == State::RECONNECTED || (previousState == State::CONNECTING && state() == MQTT_CONNECTED)) {
-        // performed once after initial connect
-        addSubscriptions(this);
-        // publish all values
-        MQTTGroup::publish(true);
-        if (previousState == State::RECONNECTED)
-          return State::CONNECTED;
-        else
-          return State::RECONNECTED;
+        if (previousState == State::RECONNECTED || (previousState == State::CONNECTING && state() == MQTT_CONNECTED)) {
+          // performed once after initial connect
+          addSubscriptions(this);
+          // publish all values
+          MQTTGroup::publish(true);
+          if (previousState == State::RECONNECTED)
+            return State::CONNECTED;
+          else
+            return State::RECONNECTED;
+        }
+        if (mqttWill != nullptr && mqttWill->needsPublish())
+          mqttWill->publish();
+
+        // recursively check registered topics
+        check();
+        // publish changed topics
+        MQTTGroup::publish();
+        if (statusTopic != nullptr && statusTopic->needsPublish())
+          statusTopic->publish();
       }
-      if (mqttWill != nullptr && mqttWill->needsPublish())
-        mqttWill->publish();
-
-      // recursively check registered topics
-      checkTopic();
-      // publish changed topics
-      MQTTGroup::publish();
-    }
 
     return state() == MQTT_CONNECTED ? State::CONNECTED : State::DISCONNECTED;
   };
-  
+
   State handle() {
-	  previousState = handle(previousState);
-	  return previousState;
-  }
+    previousState = handle(previousState);
+    return previousState;
+  };
 
   bool payloadReceived(char* topic, uint8_t* payload, unsigned int length) {
     char* p = (char*)alloca(length + 1);
@@ -293,5 +319,3 @@ protected:
   using PubSubClient::setCallback;
   using PubSubClient::setClient;
 };
-
-MQTTConfig SimpleMQTTClient::DEFAULT_CONFIG = MQTTConfig::AUTO_PUBLISH + MQTTConfig::SETTABLE + MQTTConfig::REQUESTABLE;

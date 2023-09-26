@@ -1,15 +1,22 @@
+/////////////////////////////////////////////////////////////////////
+// SimpleMQTT formatting options and routines
+// Copyright (c) Leo Meyer, leo@leomeyer.de
+// Licensed under the MIT license.
+// https://github.com/leomeyer/SimpleMQTT
+/////////////////////////////////////////////////////////////////////
 
 enum class NoFormat : uint8_t {};
 
 enum class IntegralFormat : uint8_t {
+  OCTAL = 8,
   DECIMAL = 10,
-  HEXADECIMAL = 16,
-  OCTAL = 8
+  HEXADECIMAL = 16
 };
 
 enum class BoolFormat : uint8_t {
   TRUEFALSE,  // "true"/"false"
   YESNO,      // "yes"/"no"
+  ONOFF,      // "on"/"off"
   ONEZERO,    // "1"/"0"
   ANY         // output like TRUEFALSE. Input may be one of the above.
 };
@@ -20,7 +27,6 @@ static IntegralFormat DEFAULT_INTEGRAL_FORMAT = IntegralFormat::DECIMAL;
 static char* DEFAULT_FLOAT_FORMAT = nullptr;
 static char* DEFAULT_DOUBLE_FORMAT = nullptr;
 
-
 // general format type template
 template<typename T, typename Enable = void>
 struct format_type { typedef NoFormat type; };
@@ -29,13 +35,15 @@ struct format_type { typedef NoFormat type; };
 template<typename T>
 struct format_type<T, typename std::enable_if<std::is_integral<T>::value>::type> { typedef IntegralFormat type; };
 
-// format type template for floating point types
+// format type template for floating point types (char*)
 template<typename T>
 struct format_type<T, typename std::enable_if<std::is_floating_point<T>::value>::type> { typedef const char* type; };
 
 // format type template for bool type
 template<>
 struct format_type<bool> { typedef BoolFormat type; };
+template<>
+struct format_type<const bool> { typedef BoolFormat type; };
 
 // default values for the available formats
 template <typename Format>
@@ -49,17 +57,18 @@ IntegralFormat getDefaultFormat<IntegralFormat>() { return DEFAULT_INTEGRAL_FORM
 
 namespace __internal {
 
+  // format functions
+
   String boolToString(bool b, BoolFormat format) {
     switch (format) {
       case BoolFormat::ANY:
       case BoolFormat::TRUEFALSE: return String() + (b ? F("true") : F("false"));
       case BoolFormat::YESNO: return String() + (b ? F("yes") : F("no"));
+      case BoolFormat::ONOFF: return String() + (b ? F("on") : F("off"));
       case BoolFormat::ONEZERO: return String() + (b ? F("1") : F("0"));
     }
     return String();
   }
-
-// format functions
 
   template <typename T, typename Format = NoFormat>
   String formatValue(T value, Format) { 
@@ -77,7 +86,7 @@ namespace __internal {
   String formatValue(T value, IntegralFormat format) { 
     return String(value, (uint8_t)format); // == IntegralFormat::DEFAULT_INTFORMAT ? IntegralFormat::DECIMAL : format));
   }
-
+/*
   template <>
   String formatValue(int64_t value, IntegralFormat) {
     // String does not support 64 bit value formatting (crash)
@@ -89,7 +98,7 @@ namespace __internal {
     // String does not support 64 bit value formatting (crash)
     return String(value);
   }
-
+*/
   template <typename T>
   String formatValue(T value, const char* format) { 
     if (format == nullptr)
@@ -116,6 +125,12 @@ namespace __internal {
         else if (strcmp_P(str, PSTR("no")) != 0)
           return false;
         return true;
+      case BoolFormat::ONOFF:
+        if (strcmp_P(str, PSTR("on")) == 0)
+          *b = true;
+        else if (strcmp_P(str, PSTR("off")) != 0)
+          return false;
+        return true;
       case BoolFormat::ONEZERO:
         if (strcmp_P(str, PSTR("1")) == 0)
           *b = true;
@@ -125,6 +140,7 @@ namespace __internal {
       case BoolFormat::ANY:
         if (parseBool(str, b, BoolFormat::TRUEFALSE)) return true;
         if (parseBool(str, b, BoolFormat::YESNO)) return true;
+        if (parseBool(str, b, BoolFormat::ONOFF)) return true;
         if (parseBool(str, b, BoolFormat::ONEZERO)) return true;
         break;
     }
@@ -222,12 +238,23 @@ namespace __internal {
     return parseFractionalType<T>(str, value, format);
   }
 
-  bool parseValue(const char* str, bool* value, BoolFormat format) { 
-    return parseBool(str, value, format);
+  bool parseValue(const char* str, bool* value, BoolFormat format) {
+    String s(str);
+    s.toLowerCase();
+    if (s == "toggle") {
+      *value = !*value;
+      return true;
+    }
+    return parseBool(s.c_str(), value, format);
   }
 
   bool parseValue(const char* str, String* value, NoFormat) { 
     *value = String(str);
     return true;
   }
+  
+  bool parseValue(const char* str, const String* value, NoFormat) { 
+    return false;
+  }
+  
 } // namespace __internal

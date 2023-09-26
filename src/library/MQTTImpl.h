@@ -1,4 +1,19 @@
-// MQTTTopic function implementations
+/////////////////////////////////////////////////////////////////////
+// Specific class function implementations and external definitions
+// Copyright (c) Leo Meyer, leo@leomeyer.de
+// Licensed under the MIT license.
+// https://github.com/leomeyer/SimpleMQTT
+/////////////////////////////////////////////////////////////////////
+
+// define safe memory area for invalid topics
+Topic_P(invalidTopic, "-");
+MQTTTopic MQTTTopic::INVALID_TOPIC(nullptr, invalidTopic, 0);
+const void* __internal::INVALID_PTR = (void*)&MQTTTopic::INVALID_TOPIC;
+
+SimpleMQTTClient* MQTTTopic::getClient() {
+  SIMPLEMQTT_CHECK_VALID(nullptr);
+  return _parent->getClient();
+}
 
 void MQTTTopic::publish(bool) {
   SIMPLEMQTT_CHECK_VALID();
@@ -6,14 +21,42 @@ void MQTTTopic::publish(bool) {
   config &= PUBLISH_CLEARMASK;
 }
 
+String MQTTTopic::getTopicPattern() {
+  if (_parent != nullptr)
+    return _parent->getTopicPattern();
+  else
+    return DEFAULT_TOPIC_PATTERN;
+}
+
+String MQTTTopic::getFullTopic(TopicOrder order) {
+  SIMPLEMQTT_CHECK_VALID(String());
+  const char* myName = name();
+  if (myName[0] == '/' || _parent == nullptr)
+    return String(myName);
+  else if (_parent != nullptr) {
+    switch (order) {
+      case TopicOrder::BOTTOM_UP: return String(myName) + "/" + _parent->getFullTopic(order);
+      default: return _parent->getFullTopic(order) + "/" + myName;
+    }
+  } else
+    return String(myName);
+}
+
+String MQTTTopic::getFullTopic() {
+  if (_parent == nullptr)
+    return getFullTopic(TopicOrder::UNSPECIFIED);
+  else
+    return getFullTopic(_parent->getTopicOrder());
+}
+
 String MQTTTopic::getRequestTopic() {
   SIMPLEMQTT_CHECK_VALID(String());
-  return getClient()->applyRequestPattern(this);
+  return parent().applyRequestPattern(this);
 }
 
 String MQTTTopic::getSetTopic() {
   SIMPLEMQTT_CHECK_VALID(String());
-  return getClient()->applySetPattern(this);
+  return parent().applySetPattern(this);
 }
 
 void MQTTTopic::addSubscriptions(SimpleMQTTClient* client) {
@@ -49,6 +92,10 @@ bool MQTTTopic::processPayload(SimpleMQTTClient* client, const char* topic, cons
         default:
           client->setStatus((int8_t)code, String(topic), String(payload));
       }
+      SIMPLEMQTT_DEBUG(PSTR("After request:%s"), " ");
+      #ifdef SIMPLEMQTT_DEBUG_SERIAL
+      printTo(SIMPLEMQTT_DEBUG_SERIAL);
+      #endif
       return true;
     }
   }
@@ -63,6 +110,10 @@ bool MQTTTopic::processPayload(SimpleMQTTClient* client, const char* topic, cons
         default:
           client->setStatus((int8_t)code, String(topic), String(payload));
       }
+      SIMPLEMQTT_DEBUG(PSTR("After set:%s"), " ");
+      #ifdef SIMPLEMQTT_DEBUG_SERIAL
+      printTo(SIMPLEMQTT_DEBUG_SERIAL);
+      #endif
       return true;
     }
   }
@@ -72,7 +123,7 @@ bool MQTTTopic::processPayload(SimpleMQTTClient* client, const char* topic, cons
 void MQTTGroup::addSubscriptions(SimpleMQTTClient* client) {
   SIMPLEMQTT_CHECK_VALID();
   MQTTTopic::addSubscriptions(client);
-  MQTTTopic::ListNode* node = &nodes;
+  ListNode* node = &nodes;
   while (node->next != nullptr) {
     MQTTTopic* value = node->data;
     value->addSubscriptions(client);
@@ -84,7 +135,7 @@ bool MQTTGroup::processPayload(SimpleMQTTClient* client, const char* topic, cons
   SIMPLEMQTT_CHECK_VALID(false);
   if (MQTTTopic::processPayload(client, topic, payload))
     return true;
-  MQTTTopic::ListNode* node = &nodes;
+  ListNode* node = &nodes;
   while (node->next != nullptr) {
     MQTTTopic* value = node->data;
     if (value->isTopicValid()) {
@@ -95,9 +146,3 @@ bool MQTTGroup::processPayload(SimpleMQTTClient* client, const char* topic, cons
   }
   return false;
 }
-
-
-// define safe memory area for invalid topics
-Topic_P(invalidTopic, "-");
-const MQTTTopic invalid(nullptr, invalidTopic, 0);
-const void* __internal::INVALID_PTR = (void*)&invalid;

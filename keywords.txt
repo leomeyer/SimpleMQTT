@@ -1,0 +1,59 @@
+#######################################
+# Syntax Coloring Map For SimpleMQTT
+#######################################
+
+#######################################
+# Datatypes (KEYWORD1)
+#######################################
+
+SimpleMQTT	KEYWORD1
+SimpleMQTTClient	KEYWORD1
+MQTTWill	KEYWORD1
+BoolFormat	KEYWORD1
+IntegralFormat	KEYWORD1
+ResultCode	KEYWORD1
+MQTTConfig	KEYWORD1
+
+
+#######################################
+# Methods and Functions (KEYWORD2)
+#######################################
+
+#######################################
+# Instances (KEYWORD2)
+#######################################
+
+DEFAULT_BOOL_FORMAT	KEYWORD2
+DEFAULT_INTEGRAL_FORMAT	KEYWORD2
+DEFAULT_FLOAT_FORMAT	KEYWORD2
+DEFAULT_DOUBLE_FORMAT	KEYWORD2
+
+
+#######################################
+# Constants (LITERAL1)
+#######################################
+
+TRUEFALSE	LITERAL1
+YESNO	LITERAL1
+ONOFF	LITERAL1
+ONEZERO	LITERAL1
+ANY	LITERAL1
+
+OCTAL	LITERAL1
+DECIMAL	LITERAL1
+HEXADECIMAL	LITERAL1
+
+OUT_OF_MEMORY
+INVALID_VALUE
+CANNOT_SET
+UNKNOWN_TOPIC
+INVALID_REQUEST
+INVALID_PAYLOAD
+
+QOS_0	LITERAL1
+QOS_1	LITERAL1
+QOS_2	LITERAL1
+REQUESTABLE	LITERAL1
+SETTABLE	LITERAL1
+AUTO_PUBLISH	LITERAL1
+RETAINED	LITERAL1

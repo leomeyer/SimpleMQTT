@@ -1,43 +1,59 @@
 /////////////////////////////////////////////////////////////////////
-// MQTTArray for arithmetic type arrays of known lengths or char*s
+// MQTTArray for fundamental type arrays of known lengths or char*s
+// Copyright (c) Leo Meyer, leo@leomeyer.de
+// Licensed under the MIT license.
+// https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
 template<typename T>
 class MQTTArray : public MQTTFormattedTopic<std::remove_pointer_t<T>> {
-  friend class MQTTGroup;
+friend class MQTTGroup;
 
 protected:
-  typedef ResultCode (*PayloadHandler)(MQTTArray<T>* object, const char* payload);
-  PayloadHandler payloadHandler = [](MQTTArray<T>* object, const char* payload) {
-    return object->setFromPayload(payload);
+  typedef ResultCode (*PayloadHandler)(MQTTArray<T>& object, const char* payload);
+  PayloadHandler payloadHandler = [](MQTTArray<T>& object, const char* payload) {
+    return object.setFromPayload(payload);
   };
   T array = nullptr;
   size_t length = 0;
   typename mqtt_variable<std::remove_pointer_t<T>>::type helper;  // conversion helper
 
-  MQTTArray(MQTTTopic* aParent, __internal::_Topic aTopic, uint8_t aConfig, T arr, size_t elementCount)
+  MQTTArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, T arr, size_t elementCount)
     : MQTTFormattedTopic<std::remove_pointer_t<T>>(aParent, aTopic, aConfig),
       array(arr), length(elementCount), helper(aParent, aTopic, aConfig, arr) {
     helper.setSettable(true);
   };
 
-  virtual MQTTArray<T>* _setValue(T const sourceArray) {
-    SIMPLEMQTT_CHECK_VALID(this);
-    if constexpr (!std::is_const_v<std::remove_pointer_t<T>>)
-      memcpy(array, sourceArray, sizeof(std::remove_pointer_t<T>) * length);
-    return this;
+  inline String type() const override {
+    String result("");
+    if constexpr (std::is_const_v<std::remove_pointer_t<T>>)
+      result += "!";
+    result += "[";
+    result += length;
+    result += "]";
+    return result; 
   };
+
+  template<typename U = T, typename std::enable_if<!std::is_const_v<std::remove_pointer_t<U>>, bool>::type* = nullptr> // only for non-const types
+  void _setValue(T const sourceArray) {
+    SIMPLEMQTT_CHECK_VALID();
+    memcpy(array, sourceArray, sizeof(std::remove_pointer_t<T>) * length);
+  };
+
+  template<typename U = T, typename std::enable_if<std::is_const_v<std::remove_pointer_t<U>>, bool>::type* = nullptr> // only for const types
+  void _setValue(T) {};
 
   virtual bool _isEqual(T other) {
     SIMPLEMQTT_CHECK_VALID(false);
     return memcmp(array, other, sizeof(std::remove_pointer_t<T>) * length) == 0;
   };
 
-  virtual ResultCode setReceived(const char* payload) override {
+  ResultCode setReceived(const char* payload) override {
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
-    MQTTTopic::republish();
+    if (MQTTTopic::isAutoPublish())
+      MQTTTopic::republish();
     if (payloadHandler != nullptr)
-      return payloadHandler(this, payload);
+      return payloadHandler(*this, payload);
     return setFromPayload(payload);
   };
 
@@ -45,7 +61,7 @@ public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTArray<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTArray<T>, std::remove_pointer_t<T>)
 
-  bool isSettable() override {
+  bool isSettable() const override {
     SIMPLEMQTT_CHECK_VALID(false);
     if (!MQTTFormattedTopic<std::remove_pointer_t<T>>::isSettable())
       return false;
@@ -56,24 +72,43 @@ public:
     return helper.isSettable();
   };
 
+  size_t size() {
+    return length;
+  };
+
+  inline operator T() {
+	  return array;
+  };
+
   virtual bool set(T sourceArray, bool publish = false) {
     SIMPLEMQTT_CHECK_VALID(false);
     bool changed = !_isEqual(sourceArray);
     _setValue(sourceArray);
     if (MQTTTopic::isAutoPublish() || publish)
       MQTTTopic::republish();
-    MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
     return changed;
   };
 
-  virtual MQTTArray<T>* setPayloadHandler(PayloadHandler handler) {
-    SIMPLEMQTT_CHECK_VALID(this);
-    payloadHandler = handler;
-    return this;
+  // Sets the current value of this topic.
+  // Checks whether the new value is different from the current value
+  // and sets the Changed flag on the topic if this is the case.
+  template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+  inline MQTTArray<T>& setTo(const T& newValue) {
+    SIMPLEMQTT_CHECK_VALID(*this);
+    bool changed = set(newValue);
+    MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
+    return *this;
   };
 
-  virtual ResultCode setFromPayload(const char* payload) {
+  virtual MQTTArray<T>& setPayloadHandler(PayloadHandler handler) {
+    SIMPLEMQTT_CHECK_VALID(*this);
+    payloadHandler = handler;
+    return *this;
+  };
+
+  ResultCode setFromPayload(const char* payload) override {
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
+    SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD;
     if (!isSettable())
       return ResultCode::CANNOT_SET;
     if (payload[0] == '\0')
@@ -116,16 +151,17 @@ public:
           break;
         i++;
       }
-      set((T)&newValues, true);
+      bool changed = set((T)&newValues, true);
+      MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
       return ResultCode::OK;
     }
   };
 
-  virtual String getPayload() {
+  String getPayload() const override {
     SIMPLEMQTT_CHECK_VALID(String());
     String result;
     for (size_t i = 0; i < length; i++) {
-      helper.setPointer(&array[i]);
+      const_cast<MQTTArray<T>*>(this)->helper.setPointer(&array[i]);
       result += helper.getPayload();
       if (i < length - 1)
         result += ",";
@@ -138,39 +174,52 @@ public:
     return helper.format;
   };
 
-  virtual MQTTArray<T>* setElementFormat(typename format_type<std::remove_pointer_t<T>>::type aFormat) {
-    SIMPLEMQTT_CHECK_VALID(this);
+  virtual MQTTArray<T>& setElementFormat(typename format_type<std::remove_pointer_t<T>>::type aFormat) {
+    SIMPLEMQTT_CHECK_VALID(*this);
     helper.format = aFormat;
-    return this;
+    return *this;
   };
 
-  virtual typename mqtt_variable<std::remove_pointer_t<T>>::type* element() {
-    return &helper;
+  virtual typename mqtt_variable<std::remove_pointer_t<T>>::type& element() {
+    return helper;
   };
 };
 
 template<class T>
-struct mqtt_array_type { typedef MQTTArray<T>* type; };
+struct mqtt_array_type { typedef MQTTArray<T>& type; };
+
+template<typename T, size_t N>
+class MQTTValueArray : public MQTTArray<T*> {
+friend class MQTTGroup;
+
+protected:
+  T data[N];
+
+  MQTTValueArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig)
+    : MQTTArray<T*>(aParent, aTopic, aConfig, &data[0], N) {};
+};
+
+template<class T, size_t N>
+struct mqtt_valuearray_type { typedef MQTTValueArray<T, N>& type; };
 
 
 /////////////////////////////////////////////////////////////////////
 // MQTTArray<T> specializations
 /////////////////////////////////////////////////////////////////////
 
-// char*
-
+// Array topic representing a modifiable char* string of fixed length.
 class MQTTCharArray : public MQTTArray<char*> {
   friend class MQTTGroup;
 
 protected:
-  MQTTCharArray(MQTTTopic* aParent, __internal::_Topic aTopic, uint8_t aConfig, char* array, size_t len)
+  MQTTCharArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, char* array, size_t len)
     : MQTTArray<char*>(aParent, aTopic, aConfig, array, len){};
 
-  MQTTCharArray* _setValue(char* sourceArray) override {
-    SIMPLEMQTT_CHECK_VALID(this);
+  MQTTCharArray& _setValue(char* sourceArray) {
+    SIMPLEMQTT_CHECK_VALID(*this);
     strncpy(array, sourceArray, length - 1);
     array[length - 1] = '\0';
-    return this;
+    return *this;
   };
 
 public:
@@ -182,32 +231,31 @@ public:
     return ResultCode::OK;
   };
 
-  String getPayload() {
+  String getPayload() const override {
     SIMPLEMQTT_CHECK_VALID(String());
     return String(array);
   };
 };
 
 template<>
-struct mqtt_array_type<char*> { typedef MQTTCharArray* type; };
+struct mqtt_array_type<char*> { typedef MQTTCharArray& type; };
 
-// const char*
-
+// Array topic representing a const char* string.
 class MQTTConstCharArray : public MQTTArray<const char*> {
   friend class MQTTGroup;
 
 protected:
-  MQTTConstCharArray(MQTTTopic* aParent, __internal::_Topic aTopic, uint8_t aConfig, const char* array, size_t len)
-    : MQTTArray<const char*>(aParent, aTopic, aConfig, array, len){};
+  MQTTConstCharArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, const char* array, size_t len)
+    : MQTTArray<const char*>(aParent, aTopic, aConfig, array, len) {};
 
 public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTConstCharArray)
 
-  String getPayload() {
+  String getPayload() const override {
     SIMPLEMQTT_CHECK_VALID(String());
     return String(array);
   };
 };
 
 template<>
-struct mqtt_array_type<const char*> { typedef MQTTConstCharArray* type; };
+struct mqtt_array_type<const char*> { typedef MQTTConstCharArray& type; };

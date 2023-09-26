@@ -5,17 +5,16 @@
 // https://github.com/leomeyer/SimpleMQTT
 
 #include <ESP8266WiFi.h>
-#include "device_local.h"
-#include "SimpleMQTT.h"
+#include <SimpleMQTT.h>
 
 WiFiClient espClient;
-SimpleMQTTClient mqttClient(espClient, CLIENT_NAME, MQTT_HOST, Topic(CLIENT_NAME));
-auto myTopic = mqttClient.add("BasicTopic", "Hello SimpleMQTT!");
+SimpleMQTTClient mqttClient(espClient, "simplemqtt", "test.mosquitto.org");
+auto& myTopic = mqttClient.add("my_topic", "Hello SimpleMQTT!");
 
 void setup_wifi() {
   delay(10);
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  WiFi.begin("<wifi_ssid>", "<wifi_password>");
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
