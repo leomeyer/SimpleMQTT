@@ -7,7 +7,7 @@ extern "C" {
 
 #define CLIENT_NAME "simplemqtt"
 
-#define SIMPLEMQTT_DEBUG_SERIAL Serial
+// #define SIMPLEMQTT_DEBUG_SERIAL Serial
 // #define SIMPLEMQTT_ERROR_SERIAL Serial
 // #define SIMPLEMQTT_DEBUG_MEMORY true
 
@@ -27,7 +27,7 @@ MQTTWill will("connected", "0");
 auto& values = mqttClient.add("values");
 
 #define ADD_VALUE(parent, type, name) \
-auto& parent##name##Topic = parent.add<type>(#name, 42);
+  auto& parent##name##Topic = parent.add<type>(#name, 42);
 
 ADD_VALUE(values, bool, bool);
 ADD_VALUE(values, int8_t, int8);
@@ -47,10 +47,10 @@ ADD_VALUE(values, double, double);
 auto& variables = mqttClient.add("variables");
 
 #define ADD_VARIABLE(parent, type, name) \
-type parent##name##Var = 42; \
-auto& parent##name##VarTopic = parent.add(#name, &parent##name##Var); \
-const type parent##name##Var_const{42}; \
-auto& parent##name##VarConstTopic = parent.add(#name "_const", &parent##name##Var_const);
+  type parent##name##Var = 42; \
+  auto& parent##name##VarTopic = parent.add(#name, &parent##name##Var); \
+  const type parent##name##Var_const{ 42 }; \
+  auto& parent##name##VarConstTopic = parent.add(#name "_const", &parent##name##Var_const);
 
 ADD_VARIABLE(variables, bool, bool);
 ADD_VARIABLE(variables, int8_t, int8);
@@ -68,16 +68,16 @@ ADD_VARIABLE(variables, double, double);
 // arrays
 
 auto& arrays = mqttClient.add("arrays");
-bool arraysboolArray[] = {false, true, false, true, true, false, true, false};
+bool arraysboolArray[] = { false, true, false, true, true, false, true, false };
 auto& arraysboolArrayTopic = arrays.add("bool", arraysboolArray);
-const bool arraysboolArray_const[] = {false, true, false, true, true, false, true, false};
+const bool arraysboolArray_const[] = { false, true, false, true, true, false, true, false };
 auto& arraysboolArrayTopic_const = arrays.add("bool_const", arraysboolArray_const);
 
 #define ADD_ARRAY(parent, type, name) \
-type parent##name##Array[] = {42, 43, 44, 45, 46, 47, 48, 49}; \
-auto& parent##name##ArrayTopic = parent.add(#name, parent##name##Array); \
-const type parent##name##Array_const[] = {42, 43, 44, 45, 46, 47, 48, 49}; \
-auto& parent##name##ArrayConstTopic = parent.add(#name "_const", parent##name##Array_const);
+  type parent##name##Array[] = { 42, 43, 44, 45, 46, 47, 48, 49 }; \
+  auto& parent##name##ArrayTopic = parent.add(#name, parent##name##Array); \
+  const type parent##name##Array_const[] = { 42, 43, 44, 45, 46, 47, 48, 49 }; \
+  auto& parent##name##ArrayConstTopic = parent.add(#name "_const", parent##name##Array_const);
 ADD_ARRAY(arrays, int8_t, int8);
 ADD_ARRAY(arrays, uint8_t, uint8);
 ADD_ARRAY(arrays, int16_t, int16);
@@ -125,7 +125,7 @@ typedef struct {
   String tsString;
   bool tsBool;
 } TestStruct;
-TestStruct testStruct{1, 100.5, -42, {"Hello World!"}, true};
+TestStruct testStruct{ 1, 100.5, -42, { "Hello World!" }, true };
 
 auto& groupedInt = testGroup.add("int", &testStruct.tsInt);
 auto& groupedFloat = testGroup.add("float", &testStruct.tsFloat);
@@ -137,34 +137,34 @@ auto& groupedBool = testGroup.add("bool", &testStruct.tsBool);
 
 auto& validation = mqttClient.add("validation");
 auto& validatedInt = validation.add<int>("int0..10")
-    .setFormat(IntegralFormat::OCTAL)
-    .setPayloadHandler([](auto& object, const char* payload) {
-      decltype(object.value()) newValue;
-      if (!object.parseValue(payload, &newValue))
-        return ResultCode::INVALID_PAYLOAD;
-      if (newValue < 0 || newValue > 10) {
-        object.getClient()->setStatus((int8_t)ResultCode::INVALID_VALUE, object.getFullTopic() + ": Only values between 0 and 10 allowed!");
-        return ResultCode::INVALID_VALUE;
-      }
-      object.set(newValue);
-      return ResultCode::OK;
-    });
+                       .setFormat(IntegralFormat::OCTAL)
+                       .setPayloadHandler([](auto& object, const char* payload) {
+                         decltype(object.value()) newValue;
+                         if (!object.parseValue(payload, &newValue))
+                           return ResultCode::INVALID_PAYLOAD;
+                         if (newValue < 0 || newValue > 10) {
+                           object.getClient()->setStatus((int8_t)ResultCode::INVALID_VALUE, object.getFullTopic() + ": Only values between 0 and 10 allowed!");
+                           return ResultCode::INVALID_VALUE;
+                         }
+                         object.set(newValue);
+                         return ResultCode::OK;
+                       });
 
 auto& validatedFloat = validation.add<float>("float-1000..1000")
-  .setFormat("%.3f")  
-  .setPayloadHandler(SIMPLEMQTT_PAYLOAD_HANDLER {
-    decltype(object.value()) newValue;
-    if (!object.parseValue(payload, &newValue))
-      return ResultCode::INVALID_PAYLOAD;
-      if (newValue < -1000.0f || newValue > 1000.0f) {
-        object.getClient()->setStatus((int8_t)ResultCode::INVALID_VALUE, object.getFullTopic() + ": Only values between -1000 and 1000 allowed!");
-        return ResultCode::INVALID_VALUE;
-      }
-    object.set(newValue);
-    if (object.hasBeenChanged())
-      Serial.printf_P("Value of %s has been changed to %s\n", object.name(), object.getPayload().c_str());
-    return ResultCode::OK;
-  });
+                         .setFormat("%.3f")
+                         .setPayloadHandler(SIMPLEMQTT_PAYLOAD_HANDLER {
+                           decltype(object.value()) newValue;
+                           if (!object.parseValue(payload, &newValue))
+                             return ResultCode::INVALID_PAYLOAD;
+                           if (newValue < -1000.0f || newValue > 1000.0f) {
+                             object.getClient()->setStatus((int8_t)ResultCode::INVALID_VALUE, object.getFullTopic() + ": Only values between -1000 and 1000 allowed!");
+                             return ResultCode::INVALID_VALUE;
+                           }
+                           object.set(newValue);
+                           if (object.hasBeenChanged())
+                             Serial.printf_P("Value of %s has been changed to %s\n", object.name(), object.getPayload().c_str());
+                           return ResultCode::OK;
+                         });
 
 auto& validatedDoubleArray = validation.add<double, 8>("double-10000..10000").setFormat("%0.5f");
 
@@ -195,18 +195,25 @@ auto& fnLog = functions.add("log", &logToSerial);
 
 // get/set function
 String fnGetSetString("getSetStringValue");
-String fnGet() { return fnGetSetString; }
-void fnSet(String s) { fnGetSetString = s; }
+String fnGet() {
+  return fnGetSetString;
+}
+void fnSet(String s) {
+  fnGetSetString = s;
+}
 auto& fnGetSet = functions.add("getSetString", &fnGet, &fnSet);
 
 // stability tests
 
 // adding "group" fails because it already exists, must not produce crash
 auto& dummy = mqttClient.add("group")
-              .add("i", 1)
-              .parent().add("l", 1L)
-              .parent().add("b", false)
-              .parent().add("f", 1.0f);
+                .add("i", 1)
+                .parent()
+                .add("l", 1L)
+                .parent()
+                .add("b", false)
+                .parent()
+                .add("f", 1.0f);
 
 // must fail at compile time!
 // Topic_P(emptyTest, "");
@@ -220,6 +227,39 @@ uint32_t lastPublishMillis;
 // info topics
 auto& message = mqttClient.add<String>("message");
 auto& free_heap = mqttClient.add<uint32_t>("free_heap");
+
+// test definitions
+#define DEFAULT_TEST_TIMEOUT 2500
+typedef void (*TestAction)();
+typedef bool (*TestCheck)();
+
+struct Test {
+  const char* name;
+  TestAction action;
+  TestCheck check;
+  bool succeed = true;
+  int timeout = DEFAULT_TEST_TIMEOUT;
+};
+
+#define PUBLISH_MUST_MODIFY_EQUAL(topic, value) []() { mqttClient.publish(mqttClient[#topic].getSetTopic().c_str(), #value); }, []() { return mqttClient[#topic].getPayload() == #value; }
+#define PUBLISH_MUST_NOT_MODIFY_UNEQUAL(topic, value, compare) []() { mqttClient.publish(mqttClient[#topic].getSetTopic().c_str(), #value); }, []() { return mqttClient[#topic].getPayload() != #compare; }, false
+
+Test tests[] = {
+  { "Set bool value",                             PUBLISH_MUST_MODIFY_EQUAL(values/bool, false) },
+  { "Set int8 value",                             PUBLISH_MUST_MODIFY_EQUAL(values/int8, -42) },
+  { "Check int8 value range",                     PUBLISH_MUST_NOT_MODIFY_UNEQUAL(values/int8, 255, -42) },
+  { "Set bool variable",                          PUBLISH_MUST_MODIFY_EQUAL(variables/bool, false) },
+  { "Set int8 variable",                          PUBLISH_MUST_MODIFY_EQUAL(variables/int8, -42) },
+  { "Check int8 variable range",                  PUBLISH_MUST_NOT_MODIFY_UNEQUAL(variables/int8, 255, -42) },
+  { "Check validation",                           PUBLISH_MUST_NOT_MODIFY_UNEQUAL(validation/int0..10, 42, 0) },
+  { nullptr, nullptr, nullptr }
+};
+
+Test* currentTest = tests;
+uint32_t testStart;
+int testsTotal;
+int testsFailed;
+bool runTests;
 
 // setup functions
 
@@ -244,7 +284,7 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
   setup_wifi();
 
-//  SimpleMQTT::DEFAULT_TOPIC_PATTERN = "test/%s";
+  //  SimpleMQTT::DEFAULT_TOPIC_PATTERN = "test/%s";
 
   // DEFAULT_INTEGRAL_FORMAT = IntegralFormat::HEXADECIMAL;
   mqttClient.setStatusTopic(Topic_F("status"));
@@ -253,7 +293,7 @@ void setup() {
   // Topic_F("");
 
   mqttClient.add(F("xxx")).add(F("yyy"), "Test yyy...");
-  
+
 
   // we're only interested in the voltage; init filter for JSON parser
   gosund1StatusFilter[F("StatusSNS")][F("ENERGY")][F("Voltage")] = true;
@@ -278,7 +318,6 @@ void setup() {
   will.set("1");
   mqttClient.setWill(&will);
   mqttClient.add(F("uptime_ms"), &uptime_ms);
-  
 
   auto& dynamic = mqttClient.add(String("dynamic"));
   for (int i = 0; i < 10; i++) {
@@ -287,8 +326,8 @@ void setup() {
 
   mqttClient.printTo(Serial);
 
-  mqttClient.get(0)->printTo(Serial);
-  mqttClient[1]->printTo(Serial);
+  mqttClient.get(0).printTo(Serial);
+  mqttClient[1].printTo(Serial);
   mqttClient.get("x").printTo(Serial);
   mqttClient["testgroup"].printTo(Serial);
   mqttClient["testgroup/float"].printTo(Serial);
@@ -322,6 +361,7 @@ void loop() {
       testJson.republish();
 
       lastPublishMillis = millis();
+      runTests = true;
     }
 
     if (ac1Temp.hasBeenChanged()) {
@@ -337,14 +377,68 @@ void loop() {
       Serial.printf("%s\n", message.getPayload().c_str());
     }
 
-	  // detect and print changes
-	  auto topic = mqttClient.getChange();
-	  while (topic != nullptr) {
-	    Serial.print("Changed: ");
-	    Serial.print(topic->name());
-	    Serial.print(" to: ");
-	    Serial.println(topic->getPayload());
-	    topic = mqttClient.getChange();
-	  }    
-  }
+    // detect and print changes
+    auto topic = mqttClient.getChange();
+    while (topic != nullptr) {
+      Serial.print("Changed: ");
+      Serial.print(topic->name());
+      Serial.print(" to: ");
+      Serial.println(topic->getPayload());
+      topic = mqttClient.getChange();
+    }
+
+    if (runTests) {
+      if (currentTest->name != nullptr && currentTest->action != nullptr && currentTest->check != nullptr) {
+        if (testStart == 0) {
+          testsTotal++;
+          Serial.print("Test: ");
+          Serial.print(currentTest->name);
+          Serial.print(": ");
+          testStart = millis();
+          currentTest->action();
+        } else {
+          bool timeout = millis() > testStart + currentTest->timeout;
+          // wait until successful result or timeout
+          // if "succeed" is true, the check must return true before the timeout
+          // else, the check must not return true before the timeout
+          if (currentTest->succeed) {
+            if (currentTest->check()) {
+              Serial.println("SUCCESS");
+              currentTest++;
+              testStart = 0;
+            } else
+            if (timeout) {
+              Serial.println("FAILED (timeout)");
+              testsFailed++;
+              currentTest++;
+              testStart = 0;
+            }
+          } else {
+            if (timeout) {
+              Serial.println("SUCCESS");
+              currentTest++;
+              testStart = 0;
+            } else
+            if (currentTest->check()) {
+              Serial.println("FAILED (check)");
+              testsFailed++;
+              currentTest++;
+              testStart = 0;
+            }
+          }
+        }
+      } else {
+        // tests completed
+        if (testStart == 0) {
+          if (testsFailed > 0)
+            Serial.printf_P(PSTR("\nFailed %d of %d tests total.\n"), testsFailed, testsTotal);
+          else
+            Serial.printf_P(PSTR("\nAll %d tests succeeded.\n"), testsTotal);
+            testStart = 1;
+        }
+      } // completed
+
+    } // runTests
+  } // connected
+
 }

@@ -321,6 +321,11 @@ protected:
   MQTTFormattedTopic(MQTTGroup* a_parent, __internal::_Topic aTopic, uint8_t aConfig)
     : MQTTTopic(a_parent, aTopic, aConfig) {};
 
+  virtual bool _isEqual(T other) {
+    SIMPLEMQTT_CHECK_VALID(false);
+    return value() == other;
+  };
+
 public:
   bool isSettable() const override {
     SIMPLEMQTT_CHECK_VALID(false);

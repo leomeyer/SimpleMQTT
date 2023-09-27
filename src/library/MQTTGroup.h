@@ -430,19 +430,19 @@ public:
 
   // Returns the subtopic at position i. Returns the invalid topic if the index is out of bounds.
   MQTTTopic& get(size_t i) {
-    SIMPLEMQTT_CHECK_VALID(nullptr);
+    SIMPLEMQTT_CHECK_VALID(MQTTTopic::INVALID_TOPIC);
     const ListNode* node = &nodes;
     size_t c = 0;
     while (node->next != nullptr) {
       if (i == c++)
-        return node->data;
+        return *node->data;
       node = node->next;
     }
     return MQTTTopic::INVALID_TOPIC;
   };
 
   // Returns the subtopic at position i. Returns the invalid topic if the index is out of bounds.
-  inline MQTTTopic* operator[](size_t i) {
+  inline MQTTTopic& operator[](size_t i) {
     return get(i);
   };
 

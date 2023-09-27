@@ -40,16 +40,11 @@ protected:
       _value = newValue;
   };
 
-  virtual bool _isEqual(T other) {
-    SIMPLEMQTT_CHECK_VALID(false);
-    return _value == other;
-  };
-
   virtual bool _set(T newValue) {
     SIMPLEMQTT_CHECK_VALID(false);
     if constexpr (std::is_const_v<T>)
       return false;
-    bool changed = !_isEqual(newValue);
+    bool changed = !this->_isEqual(newValue);
     _setValue(newValue);
     if (MQTTTopic::isAutoPublish())
       MQTTTopic::republish();

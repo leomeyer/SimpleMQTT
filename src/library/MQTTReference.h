@@ -36,18 +36,13 @@ protected:
       valueRef = newValue;
   };
 
-  bool _isEqual(T other) override {
-    SIMPLEMQTT_CHECK_VALID(false);
-    return valueRef == other;
-  };
-
   bool check() override {
     SIMPLEMQTT_CHECK_VALID(false);
     if (!MQTTValue<T>::check())
       return false;
     if constexpr (!std::is_const_v<T>) {
       // detect underlying value change
-      if (!_isEqual(MQTTValue<T>::_value)) {
+      if (!this->_isEqual(MQTTValue<T>::_value)) {
         MQTTValue<T>::_value = valueRef;
         if (MQTTValue<T>::isAutoPublish())
           MQTTValue<T>::republish();
