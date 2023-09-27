@@ -257,4 +257,14 @@ namespace __internal {
     return false;
   }
   
+  bool parseValue(const char* str, char** value, NoFormat) { 
+    *value = (char*)str;
+    return true;
+  }
+  
+  bool parseValue(const char* str, const char** value, NoFormat) { 
+    *value = str;
+    return true;
+  }
+  
 } // namespace __internal

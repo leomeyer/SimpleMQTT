@@ -106,8 +106,10 @@ namespace __internal {
     uint8_t flags = 0;
 
   public:
-    _Topic(const char* t, bool progmem = false)
-      : topic(t) {
+    template<size_t N>
+    _Topic(const char (&t)[N], bool progmem = false) : topic(t) {
+      static_assert(N > 1, "Empty topic not allowed!");
+      static_assert(N < SIMPLEMQTT_MAX_TOPIC_LENGTH, "Topic too long!");
       if (progmem)
         flags = 1;
     };
@@ -174,7 +176,7 @@ namespace __internal {
 
 #define Topic(t)          __internal::_Topic(__internal::CHECKTOPIC(t))
 #define Topic_F(t)        __internal::_Topic(F(t), __internal::CHECKTOPIC(t) != nullptr)
-#define Topic_P(name, t)  static const char* PROGMEM name##_pstr = __internal::CHECKTOPIC(t);  static __internal::_Topic name(name##_pstr, true);
+#define Topic_P(name, t)  static auto& PROGMEM name##_pstr = __internal::CHECKTOPIC(t);  static __internal::_Topic name(name##_pstr, true);
 
 #define SIMPLEMQTT_CHECK_VALID(retval) \
   if (this == __internal::INVALID_PTR) return retval;

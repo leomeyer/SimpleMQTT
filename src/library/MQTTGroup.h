@@ -8,8 +8,8 @@
 // A SimpleMQTT topic that represents a topic in a topic hierarchy.
 // A group topic has no value of its own but manages a number of subtopics that can themselves be groups.
 class MQTTGroup : public MQTTTopic {
-friend class MQTTTopic;
-friend class SimpleMQTTClient;
+  friend class MQTTTopic;
+  friend class SimpleMQTTClient;
 
 protected:
   typedef struct ListNode {
@@ -24,9 +24,11 @@ protected:
   String setPattern;
 
   MQTTGroup(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig)
-    : MQTTTopic(aParent, aTopic, aConfig) {};
+    : MQTTTopic(aParent, aTopic, aConfig){};
 
-  inline String type() const override { return String("+"); };
+  inline String type() const override {
+    return String("+");
+  };
 
   String getTopicPattern() override {
     String result;
@@ -85,7 +87,7 @@ protected:
     if (this == __internal::INVALID_PTR) {
       SIMPLEMQTT_ERROR(PSTR("MQTTGroup is invalid, cannot add element\n"));
       return false;
-    } 
+    }
     if (!isTopicValid()) {
       SIMPLEMQTT_ERROR(PSTR("MQTTGroup topic '%s' is invalid, cannot add element\n"), topic.get());
       return false;
@@ -107,7 +109,7 @@ protected:
     node->data = value;
     node->next = SIMPLEMQTT_ALLOCATE(ListNode);
     if (node->next == __internal::INVALID_PTR) {
-        SIMPLEMQTT_ERROR(PSTR("Not enough memory for internal list, element '%s'\n"), value->getFullTopic().c_str());
+      SIMPLEMQTT_ERROR(PSTR("Not enough memory for internal list, element '%s'\n"), value->getFullTopic().c_str());
       node->data = nullptr;
       node->next = nullptr;
       return false;
@@ -138,7 +140,7 @@ protected:
     while (node->next != nullptr) {
       MQTTTopic* value = node->data;
       if (value->needsPublish()) {
-//        SIMPLEMQTT_DEBUG(PSTR("Needs publish: '%s', config: %s\n"), value->getFullTopic().c_str(), value->getConfigStr());
+        //        SIMPLEMQTT_DEBUG(PSTR("Needs publish: '%s', config: %s\n"), value->getFullTopic().c_str(), value->getConfigStr());
         return true;
       }
       node = node->next;
@@ -168,7 +170,7 @@ protected:
   };
 
   virtual void addSubscriptions(SimpleMQTTClient* client) override;
-  
+
   virtual bool processPayload(SimpleMQTTClient* client, const char* topic, const char* payload) override;
 
 public:
@@ -236,7 +238,7 @@ public:
 #define SIMPLEMQTT_ADD_BODY(typeName, className, ...) \
   if (this == __internal::INVALID_PTR || !topic.isValid()) { \
     topic.release(); \
-    return (typename argument_type<void(typeName)>::type)*((typename argument_type<void(className)>::type*)__internal::INVALID_PTR); \
+    return (typename argument_type<void(typeName)>::type) * ((typename argument_type<void(className)>::type*)__internal::INVALID_PTR); \
   } \
   typename argument_type<void(className)>::type* result = SIMPLEMQTT_ALLOCATE(typename argument_type<void(className)>::type, __VA_ARGS__); \
   if (result != __internal::INVALID_PTR && addOrFree(result)) { \
@@ -244,22 +246,22 @@ public:
     return *result; \
   } \
   topic.release(); \
-  return ((typename argument_type<void(typeName)>::type)*((typename argument_type<void(className)>::type*)__internal::INVALID_PTR))
+  return ((typename argument_type<void(typeName)>::type) * ((typename argument_type<void(className)>::type*)__internal::INVALID_PTR))
 
   // Adds a new group with the specified topic name.
   MQTTGroup& add(__internal::_Topic topic) override {
     SIMPLEMQTT_ADD_BODY(MQTTGroup&, MQTTGroup, this, topic, getConfig());
   };
 
-  #define IS_FUNDAMENTAL  std::is_fundamental_v<T>
-  #define NOT_FUNDAMENTAL !std::is_fundamental_v<T>
-  #define IS_CONST        std::is_const_v<T>
-  #define NOT_CONST       !std::is_const_v<T>
-  #define IS_POINTER      std::is_pointer_v<T>
-  #define NOT_POINTER     !std::is_pointer_v<T>
-  #define IS_ARRAY        std::is_array_v<T>
-  #define NOT_ARRAY       !std::is_array_v<T>
-  #define NOT_STRING      !std::is_same_v<T, char*> && !std::is_same_v<T, const char*>
+#define IS_FUNDAMENTAL std::is_fundamental_v<T>
+#define NOT_FUNDAMENTAL !std::is_fundamental_v<T>
+#define IS_CONST std::is_const_v<T>
+#define NOT_CONST !std::is_const_v<T>
+#define IS_POINTER std::is_pointer_v<T>
+#define NOT_POINTER !std::is_pointer_v<T>
+#define IS_ARRAY std::is_array_v<T>
+#define NOT_ARRAY !std::is_array_v<T>
+#define NOT_STRING !std::is_same_v<T, char*> && !std::is_same_v<T, const char*>
 
   // Adds a new non-const value topic with the specified name and data type.
   template<typename T>
@@ -298,7 +300,7 @@ public:
   typename std::enable_if_t<IS_FUNDAMENTAL && NOT_CONST && (N > 0), typename mqtt_valuearray_type<T, N>::type> add(__internal::_Topic topic) {
     SIMPLEMQTT_ADD_BODY((typename mqtt_valuearray_type<T, N>::type), (MQTTValueArray<T, N>), this, topic, getConfig());
   };
-  
+
   // Adds a new fundamental data type array topic with the specified name and the given element count.
   // The data type may be const.
   template<typename T>
@@ -328,44 +330,70 @@ public:
     SIMPLEMQTT_ADD_BODY(typename mqtt_reference_type<T>::type, MQTTReference<T>, this, topic, getConfig(), val);
   };
 
-  // Adds a new value data type topic with the specified name. The value is copied into the topic's value. The data type may not be const.
-  template<typename T, typename V>
-  typename std::enable_if_t<!std::is_same_v<T, V> && std::is_rvalue_reference_v<V&> && NOT_ARRAY && NOT_FUNDAMENTAL, typename mqtt_value_type<T>::type> add(__internal::_Topic topic, V& val) {
+  // Adds a new value data type topic with the specified name. The value is copied into the topic's value.
+  template<typename T>
+  typename std::enable_if_t<std::is_rvalue_reference_v<T&> && NOT_ARRAY && NOT_FUNDAMENTAL, typename mqtt_value_type<T>::type> add(__internal::_Topic topic, const T& val) {
     SIMPLEMQTT_ADD_BODY(typename mqtt_value_type<T>::type, MQTTValue<T>, this, topic, getConfig(), val);
   };
 
-  // Adds a new string topic from the given string. The topic value is settable and has a fixed length.
+  // Adds a new value data type topic with the specified name. The value is copied into the topic's value. The data type may not be const.
+  template<typename T, typename V>
+  typename std::enable_if_t<NOT_CONST && !std::is_same_v<T, V> && std::is_rvalue_reference_v<V&> && NOT_ARRAY && NOT_FUNDAMENTAL, typename mqtt_value_type<T>::type> add(__internal::_Topic topic, V& val) {
+    SIMPLEMQTT_ADD_BODY(typename mqtt_value_type<T>::type, MQTTValue<T>, this, topic, getConfig(), val);
+  };
+
+  // Adds a new string topic from the given string. The value is settable and has a fixed length.
   MQTTCharArray& add(__internal::_Topic topic, char* s);
 
-  // Adds a new string topic from the given string. The topic value is not settable.
+  // Adds a new string topic from the given string constant. The value is not settable.
   MQTTConstCharArray& add(__internal::_Topic topic, const char* s);
 
-  #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
+  // Adds a new Get function topic. The function is called when the topic is published or its value() function is called.
+  template<typename T>
+  typename std::enable_if_t<true, typename mqtt_getfunction_type<T>::type> add(__internal::_Topic topic, T (*getFunction)(void)) {
+    SIMPLEMQTT_ADD_BODY(typename mqtt_getfunction_type<T>::type, MQTTGetFunction<T>, this, topic, getConfig(), getFunction);
+  };
+
+  // Adds a new Set function topic. The function is called with the parsed payload when the topic is being set via MQTT or by assignment.
+  template<typename T>
+  typename std::enable_if_t<true, typename mqtt_setfunction_type<T>::type> add(__internal::_Topic topic, void (*setFunction)(T)) {
+    SIMPLEMQTT_ADD_BODY(typename mqtt_setfunction_type<T>::type, MQTTSetFunction<T>, this, topic, getConfig(), setFunction);
+  };
+
+  // Adds a new function topic with both Get and Set functions that must return/accept the same data type.
+  // The Get function is called when the topic is published or its value() function is called.
+  // The Set function is called with the parsed payload when the topic is being set via MQTT or by assignment.
+  template<typename T>
+  typename std::enable_if_t<true, typename mqtt_getsetfunction_type<T>::type> add(__internal::_Topic topic, T (*getFunction)(void), void (*setFunction)(T)) {
+    SIMPLEMQTT_ADD_BODY(typename mqtt_getsetfunction_type<T>::type, MQTTGetSetFunction<T>, this, topic, getConfig(), getFunction, setFunction);
+  };
+
+#if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   // Adds a new Json topic with an optional filter specifying the JSON nodes of interest.
   // The filter document's content can be changed if necessary.
   MQTTJsonTopic& addJsonTopic(__internal::_Topic topic, JsonDocument* filter = nullptr) {
     SIMPLEMQTT_ADD_BODY(MQTTJsonTopic&, MQTTJsonTopic, this, topic, getConfig(), filter);
   };
-  #endif
+#endif
 
   // Returns the number of child topics in this group.
   const size_t size() const {
     SIMPLEMQTT_CHECK_VALID(0);
     const ListNode* node = &nodes;
-  	size_t c = 0;
+    size_t c = 0;
     while (node->next != nullptr) {
       c++;
       node = node->next;
     }
-	  return c;
+    return c;
   };
-  
+
   // Returns a subtopic by name or path
   MQTTTopic& get(const String& key, bool autoCreate = false) override {
     SIMPLEMQTT_CHECK_VALID(MQTTTopic::INVALID_TOPIC);
     if (key.length() == 0)
       return *this;
-    String part{key};
+    String part{ key };
     String rest;
     int i = key.indexOf("/", 1);
     if (i > 0) {
@@ -374,8 +402,8 @@ public:
     }
     const ListNode* node = &nodes;
     while (node->next != nullptr) {
-	  if (part.equals(node->data->name()))
-	    return node->data->get(rest, autoCreate);
+      if (part.equals(node->data->name()))
+        return node->data->get(rest, autoCreate);
       node = node->next;
     }
     // not found; create?
@@ -383,38 +411,46 @@ public:
       MQTTTopic& result = add(part);
       return result.get(rest);
     }
-	  return MQTTTopic::INVALID_TOPIC;
+    return MQTTTopic::INVALID_TOPIC;
   };
 
   // bracket operators use implicit auto-create of missing group topics
-  inline MQTTTopic& operator[](const char* key) { return get(String() + key, true); };
-  inline MQTTTopic& operator[](char* key) { return get(String() + key, true); };
-  inline MQTTTopic& operator[](const String& key) { return get(key, true); };
-  inline MQTTTopic& operator[](const __FlashStringHelper* key) { return get(String() + key, true); };
-  
-  // Returns the subtopic at position i. May return nullptr if the index is out of bounds.
-  MQTTTopic* get(size_t i) {
-    SIMPLEMQTT_CHECK_VALID(nullptr);
-    const ListNode* node = &nodes;
-	  size_t c = 0;
-    while (node->next != nullptr) {
-      if (i == c++)
-		    return node->data;
-      node = node->next;
-    }
-	  return nullptr;
+  inline MQTTTopic& operator[](const char* key) {
+    return get(String() + key, true);
+  };
+  inline MQTTTopic& operator[](char* key) {
+    return get(String() + key, true);
+  };
+  inline MQTTTopic& operator[](const String& key) {
+    return get(key, true);
+  };
+  inline MQTTTopic& operator[](const __FlashStringHelper* key) {
+    return get(String() + key, true);
   };
 
-  // Returns the subtopic at position i. May return nullptr if the index is out of bounds.
-  inline MQTTTopic* operator[](size_t i) {
-	  return get(i);
+  // Returns the subtopic at position i. Returns the invalid topic if the index is out of bounds.
+  MQTTTopic& get(size_t i) {
+    SIMPLEMQTT_CHECK_VALID(nullptr);
+    const ListNode* node = &nodes;
+    size_t c = 0;
+    while (node->next != nullptr) {
+      if (i == c++)
+        return node->data;
+      node = node->next;
+    }
+    return MQTTTopic::INVALID_TOPIC;
   };
-  
+
+  // Returns the subtopic at position i. Returns the invalid topic if the index is out of bounds.
+  inline MQTTTopic* operator[](size_t i) {
+    return get(i);
+  };
+
   bool hasBeenChanged(bool b) const override {
     SIMPLEMQTT_CHECK_VALID(false);
     const ListNode* node = &nodes;
     while (node->next != nullptr) {
-	  if (node->data->hasBeenChanged(b))
+      if (node->data->hasBeenChanged(b))
         return true;
       node = node->next;
     }
@@ -426,11 +462,11 @@ public:
     SIMPLEMQTT_CHECK_VALID(nullptr);
     ListNode* node = &nodes;
     while (node->next != nullptr) {
-	  if (node->data->hasBeenChanged(false))
+      if (node->data->hasBeenChanged(false))
         return node->data->getChange();
       node = node->next;
     }
-  	return nullptr;
+    return nullptr;
   };
 
   // Prints information about this topic group to the specified Print object.

@@ -57,6 +57,10 @@ protected:
     return setFromPayload(payload);
   };
 
+  typename std::remove_pointer_t<T> value() const override {
+	  return array[0];
+  };
+
 public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTArray<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTArray<T>, std::remove_pointer_t<T>)
@@ -74,10 +78,6 @@ public:
 
   size_t size() {
     return length;
-  };
-
-  inline operator T() {
-	  return array;
   };
 
   virtual bool set(T sourceArray, bool publish = false) {

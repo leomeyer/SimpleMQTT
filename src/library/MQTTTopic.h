@@ -336,11 +336,23 @@ public:
   };
 
   // Sets the current format used by this topic.
-// The type of format depends on the underlying data type used by the topic.
+  // The type of format depends on the underlying data type used by the topic.
   virtual MQTTFormattedTopic<T>& setFormat(typename format_type<T>::type aFormat) {
     SIMPLEMQTT_CHECK_VALID(*this);
     format = aFormat;
     return *this;
+  };
+
+  virtual T value() const = 0;
+
+  inline operator T() const {
+	  return value();
+  };
+
+  String getPayload() const override {
+    SIMPLEMQTT_CHECK_VALID(String());
+    String s = __internal::formatValue(value(), format);
+    return s;
   };
 };
 

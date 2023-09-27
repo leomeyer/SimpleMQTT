@@ -69,7 +69,7 @@ public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTValue<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTValue<T>, T)
 
-  virtual bool isSettable() const override {
+  bool isSettable() const override {
     SIMPLEMQTT_CHECK_VALID(false);
     if constexpr (std::is_const_v<T>)
       return false;
@@ -77,13 +77,9 @@ public:
   };
 
   // Returns the current value of this topic.
-  virtual T value() const {
+  T value() const override {
     SIMPLEMQTT_CHECK_VALID(T{});
     return _value;
-  };
-
-  inline operator T() const {
-	  return value();
   };
 
   // Sets the current value of this topic. Returns whether the value has changed.
@@ -126,13 +122,6 @@ public:
     if constexpr (std::is_const_v<T>)
       return false;
     return __internal::parseValue(str, newValue, MQTTFormattedTopic<T>::format);
-  };
-
-  // Returns the payload for this topic by applying the currently specified format.
-  String getPayload() const override {
-    SIMPLEMQTT_CHECK_VALID(String());
-    String s = __internal::formatValue(value(), MQTTFormattedTopic<T>::format);
-    return s;
   };
 
   // Attempts to set this topic's value from the supplied payload string.

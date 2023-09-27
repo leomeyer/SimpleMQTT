@@ -161,6 +161,8 @@ namespace SimpleMQTT {
 
   #include "MQTTArray.h"
 
+  #include "MQTTFunction.h"
+
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   #include "MQTTJson.h"
 #endif
@@ -171,7 +173,7 @@ namespace SimpleMQTT {
 
   #include "MQTTClient.h"
 
-  #include "MQTTImpl.h"
+  #include "Impl.h"
 
 } // namespace SimpleMQTT
 

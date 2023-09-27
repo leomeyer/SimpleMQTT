@@ -7,7 +7,7 @@ extern "C" {
 
 #define CLIENT_NAME "simplemqtt"
 
-// #define SIMPLEMQTT_DEBUG_SERIAL Serial
+#define SIMPLEMQTT_DEBUG_SERIAL Serial
 // #define SIMPLEMQTT_ERROR_SERIAL Serial
 // #define SIMPLEMQTT_DEBUG_MEMORY true
 
@@ -101,7 +101,7 @@ auto& constantString1Topic = strings.add("constantString1", constantString1);
 auto& constantString2Topic = strings.add("constantString2", "constant string 2");
 const String constantString3("constant string 3");
 auto& constantString3Topic = strings.add("constantString3", constantString3);
-//auto& variableString1Topic = strings.add("variableString1", String("variable string 1"));
+auto& variableString1Topic = strings.add("variableString1", new String("variable string 1"));
 auto& variableString2Topic = strings.add<String>("variableString2").setTo("variable string 2");
 String variableString3("variable string 3");
 auto& variableString3Topic = strings.add("variableString3", variableString3);
@@ -180,19 +180,48 @@ auto& testJson = json.addJsonTopic("testJson");
 StaticJsonDocument<200> gosund1StatusFilter;
 auto& gosund1Status = json["/stat"].add("gosund1").addJsonTopic("STATUS8", &gosund1StatusFilter);
 
-// adding "group" fails, must not produce crash
+// functions
+
+auto& functions = mqttClient.add("functions");
+
+// get function
+auto& fnMillis = functions.add("millis", &millis);
+
+// set function
+void logToSerial(const char* s) {
+  Serial.println(s);
+}
+auto& fnLog = functions.add("log", &logToSerial);
+
+// get/set function
+String fnGetSetString("getSetStringValue");
+String fnGet() { return fnGetSetString; }
+void fnSet(String s) { fnGetSetString = s; }
+auto& fnGetSet = functions.add("getSetString", &fnGet, &fnSet);
+
+// stability tests
+
+// adding "group" fails because it already exists, must not produce crash
 auto& dummy = mqttClient.add("group")
               .add("i", 1)
               .parent().add("l", 1L)
               .parent().add("b", false)
               .parent().add("f", 1.0f);
 
-//auto& m1 = mqttClient.add<String>("");
+// must fail at compile time!
+// Topic_P(emptyTest, "");
+// auto& m1 = mqttClient.add<String>("");
+// auto& m1 = mqttClient.add<String>("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
+// global variables
 uint32_t uptime_ms;
+uint32_t lastPublishMillis;
+
+// info topics
 auto& message = mqttClient.add<String>("message");
 auto& free_heap = mqttClient.add<uint32_t>("free_heap");
 
-uint32_t lastPublishMillis;
+// setup functions
 
 void setup_wifi() {
   delay(10);
@@ -219,6 +248,12 @@ void setup() {
 
   // DEFAULT_INTEGRAL_FORMAT = IntegralFormat::HEXADECIMAL;
   mqttClient.setStatusTopic(Topic_F("status"));
+
+  // must fail at compile time!
+  // Topic_F("");
+
+  mqttClient.add(F("xxx")).add(F("yyy"), "Test yyy...");
+  
 
   // we're only interested in the voltage; init filter for JSON parser
   gosund1StatusFilter[F("StatusSNS")][F("ENERGY")][F("Voltage")] = true;
@@ -267,9 +302,6 @@ void loop() {
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(LED_BUILTIN, HIGH);
     state = mqttClient.handle(state);
-
-    // Serial.printf("my state = %d\n", state);
-    // delay(250);
 
     if (state == State::RECONNECTED) {
       lastPublishMillis = millis();
