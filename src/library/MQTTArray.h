@@ -1,12 +1,12 @@
 /////////////////////////////////////////////////////////////////////
-// MQTTArray for fundamental type arrays of known lengths or char*s
+// MQTTArray for fundamental type arrays of fixed length
 // Copyright (c) Leo Meyer, leo@leomeyer.de
 // Licensed under the MIT license.
 // https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
 template<typename T>
-class MQTTArray : public MQTTFormattedTopic<std::remove_pointer_t<T>> {
+class MQTTArray : public MQTTTopic {
 friend class MQTTGroup;
 
 protected:
@@ -14,12 +14,12 @@ protected:
   PayloadHandler payloadHandler = [](MQTTArray<T>& object, const char* payload) {
     return object.setFromPayload(payload);
   };
-  T array = nullptr;
+  typename std::remove_const_t<T> array = nullptr;
   size_t length = 0;
   typename mqtt_variable<std::remove_pointer_t<T>>::type helper;  // conversion helper
 
   MQTTArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, T arr, size_t elementCount)
-    : MQTTFormattedTopic<std::remove_pointer_t<T>>(aParent, aTopic, aConfig),
+    : MQTTTopic(aParent, aTopic, aConfig),
       array(arr), length(elementCount), helper(aParent, aTopic, aConfig, arr) {
     helper.setSettable(true);
   };
@@ -57,17 +57,12 @@ protected:
     return setFromPayload(payload);
   };
 
-  typename std::remove_pointer_t<T> value() const override {
-	  return array[0];
-  };
-
 public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTArray<T>)
-  SIMPLEMQTT_FORMAT_SETTER(MQTTArray<T>, std::remove_pointer_t<T>)
 
   bool isSettable() const override {
     SIMPLEMQTT_CHECK_VALID(false);
-    if (!MQTTFormattedTopic<std::remove_pointer_t<T>>::isSettable())
+    if (!MQTTTopic::isSettable())
       return false;
     if constexpr (std::is_const_v<T>)
       return false;
@@ -87,17 +82,6 @@ public:
     if (MQTTTopic::isAutoPublish() || publish)
       MQTTTopic::republish();
     return changed;
-  };
-
-  // Sets the current value of this topic.
-  // Checks whether the new value is different from the current value
-  // and sets the Changed flag on the topic if this is the case.
-  template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
-  inline MQTTArray<T>& setTo(const T& newValue) {
-    SIMPLEMQTT_CHECK_VALID(*this);
-    bool changed = set(newValue);
-    MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
-    return *this;
   };
 
   virtual MQTTArray<T>& setPayloadHandler(PayloadHandler handler) {
@@ -169,12 +153,12 @@ public:
     return result;
   };
 
-  virtual typename format_type<std::remove_pointer_t<T>>::type getElementFormat() {
+  virtual typename format_type<std::remove_pointer_t<T>>::type getFormat() {
     SIMPLEMQTT_CHECK_VALID(typename format_type<std::remove_pointer_t<T>>::type{});
     return helper.format;
   };
 
-  virtual MQTTArray<T>& setElementFormat(typename format_type<std::remove_pointer_t<T>>::type aFormat) {
+  virtual MQTTArray<T>& setFormat(typename format_type<std::remove_pointer_t<T>>::type aFormat) {
     SIMPLEMQTT_CHECK_VALID(*this);
     helper.format = aFormat;
     return *this;
@@ -182,6 +166,17 @@ public:
 
   virtual typename mqtt_variable<std::remove_pointer_t<T>>::type& element() {
     return helper;
+  };
+
+  // Returns a pointer to the element at index i. Does not perform range checking.
+  T get(size_t i) {
+    SIMPLEMQTT_CHECK_VALID(T{});
+    return &array[i];
+  };
+
+  // Returns a pointer to the element at index i. Does not perform range checking.
+  inline T operator[](size_t i) {
+    return get(i);
   };
 };
 

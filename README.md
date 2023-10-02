@@ -62,9 +62,10 @@ Full sketch:
 ## Features
 - Supports all fundamental data types (integral types, floating point types, `bool`) as well as arrays of these types
 - Supports character arrays (fixed length) and `String` objects (variable length), both constant or modifiable
-- Can either manage topic values by itself or reference existing variables
-- Can detect changes to referenced variables and auto-publish them if necessary
+- Can either manage topic values by itself or use existing variables
+- Can detect changes to variables and automatically publish them if necessary
 - Supports subscribing to any topic on an MQTT broker
+- Optional support for working with complex JSON structures
 - Supports different formatting options depending on data type
 - Conversion range checks ensure that only valid values are accepted
 - Supports custom data types and individual validation functions
@@ -74,28 +75,27 @@ Full sketch:
 - Optional status message to provide feedback via an MQTT topic
 - Optional will message for the broker to set on disconnect
 - Control topic tree layout by specifying patterns for request, set, and topics themselves
-- Optional support for working with complex JSON structures
 
 ## Requirements
 This library requires the [PubSubClient library](https://github.com/knolleary/pubsubclient).
 The `SimpleMQTTClient` class extends the `PubSubClient` class which makes it easy to migrate existing code
 as most functions of the `PubSubClient` base class can still be used without changes.
 
-If you want to easily work with JSON payloads you need to install the [ArduinoJson library](https://arduinojson.org/) and define the JSON memory buffer size before including `SimpleMQTT.h`: 
+If you want to easily work with JSON payloads you need to install the [ArduinoJson library](https://arduinojson.org/) and define a JSON memory buffer size before including `SimpleMQTT.h`: 
 
 	#define SIMPLEMQTT_JSON_BUFFERSIZE  1024
 
 ## Topics
-A  topic is the basic element of the SimpleMQTT implementation. It may either serve as a group (a "container" that contains other topics) or refer to a certain value or variable that is used to represent some state in your IoT program.
+A  topic is the basic element of the SimpleMQTT implementation. It may either serve as a group (a "container" that contains other topics) or refer to a certain value or variable that represents some state in your program.
 ### Topic name rules
 A topic has a name that may not be empty or contain the characters `#`, `+` or ` ` (the blank character). It may not contain a `/` (slash) except at the very start of the name.
-Topics whose name does not start with a slash appear as subtopics of their parent topic. If the name starts with a slash the topic appears as its own "top-level topic" which may be outside of the parent topic's hierarchy if you want. This case is especially useful if you want to listen to messages that are not originally intended for your device. Special rules apply to [Top-level topics](#top-level-topics).
+Topics whose name does not start with a slash appear as subtopics of their parent topic. If the name starts with a slash the topic appears as its own "top-level topic" which can be outside of the parent topic's hierarchy. This is useful if you want to listen to messages from other devices or services. Special rules apply to [Top-level topics](#top-level-topics).
 
 The topmost parent topic is specified when the `SimpleMQTTClient` class is instantiated:
 
     SimpleMQTTClient mqttClient(espClient, "simplemqtt", "test.mosquitto.org");
 
-In this case `simplemqtt` will be the "parent namespace" for all topics that are added to this `mqttClient` and whose names do not start with a slash.
+In this example`simplemqtt` will be the "parent namespace" for all topics that are added to this `mqttClient` and whose names do not start with a slash.
 
 For readability most of the following examples use static `char` array constants as topic names. The topic names may also be stored in flash memory (`PROGMEM`), however. For details how to do this please see section [Memory Management](#memory-management) below.
 
@@ -418,10 +418,10 @@ SimpleMQTT can also work with arrays of the fundamental data types. To add an ar
 	float floatArray[] = {1.02323f, 12.324524f, 545.132323f, 5465464.3434f, -1235354.3434f, 0660956.45435f};
 	auto& floatArrayTopic = mqttClient.add("float_array", floatArray, sizeof(floatArray) / sizeof(float));
 
-This topic will be published to the MQTT broker with the payload `1.02,12.32,545.13,5465464.50,-1235354.38,660956.44` (because the default number of decimals is 2). To specify a different format for an array topic's elements use the `setElementFormat()` function whose parameter type depends on the underlying data type just like the `setFormat()` function described above:
+This topic will be published to the MQTT broker with the payload `1.02,12.32,545.13,5465464.50,-1235354.38,660956.44` (because the default number of decimals is 2). To specify a different format for an array topic's elements use the `setFormat()` function whose parameter type depends on the underlying data type:
 
 	auto& floatArrayTopic = mqttClient.add("float_array", floatArray, sizeof(floatArray) / sizeof(float))
-	  .setElementFormat("%.5f");
+	  .setFormat("%.5f");
 
 In this case the payload will be represented as `1.02323,12.32452,545.13232,5465464.50000,-1235354.37500,660956.43750`.
 
