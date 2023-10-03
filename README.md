@@ -1,7 +1,8 @@
 
 
+
 # SimpleMQTT
-An ESP8266/ESP32 library to simplify MQTT integration for IoT devices.
+A C++ library to simplify MQTT integration for IoT devices.
 
 ## Quickstart
 Define a `SimpleMQTTClient` instance:
@@ -22,8 +23,6 @@ Repeatedly call the `handle()` function:
     }
     
 The topic will be published on `test.mosquitto.org` at `simplemqtt/my_topic`. 
-To change the value of the topic, publish a new value to `simplemqtt/my_topic/set`.
-To request the value of the topic, publish a message to `simplemqtt/my_topic/get`.
 
 Full sketch:
 
@@ -62,10 +61,10 @@ Full sketch:
 ## Features
 - Supports all fundamental data types (integral types, floating point types, `bool`) as well as arrays of these types
 - Supports character arrays (fixed length) and `String` objects (variable length), both constant or modifiable
-- Can either manage topic values by itself or use existing variables
+- Can either manage topic values by itself or refer to existing variables in your program
 - Can detect changes to variables and automatically publish them if necessary
-- Supports subscribing to any topic on an MQTT broker
-- Optional support for working with complex JSON structures
+- Supports subscribing to any topic on an MQTT broker (to listen to other devices' messages)
+- Optional support for working with complex JSON structures (using ArduinoJson)
 - Supports different formatting options depending on data type
 - Conversion range checks ensure that only valid values are accepted
 - Supports custom data types and individual validation functions
@@ -77,6 +76,11 @@ Full sketch:
 - Control topic tree layout by specifying patterns for request, set, and topics themselves
 
 ## Requirements
+**A C++ compiler with standard C++17 or higher is required. The current version of AVR-GCC supplied with the Arduino IDE (7.3.0) does not fully support C++17. This means that you cannot currently use this library with AVR microprocessors.**
+
+Supported Arduino IDE boards:
+- ESP8266
+
 This library requires the [PubSubClient library](https://github.com/knolleary/pubsubclient).
 The `SimpleMQTTClient` class extends the `PubSubClient` class which makes it easy to migrate existing code
 as most functions of the `PubSubClient` base class can still be used without changes.
