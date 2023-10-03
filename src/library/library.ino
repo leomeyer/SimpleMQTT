@@ -1,13 +1,19 @@
-#include <ESP8266WiFi.h>
-extern "C" {
-#include "user_interface.h"
-}
+
+#if defined(ESP8266)
+  #include <ESP8266WiFi.h>
+
+  extern "C" {
+  #include "user_interface.h"
+  }
+#elif defined(ESP32)
+  #include <WiFi.h>
+#endif
 
 #include "secrets.h"
 
 #define CLIENT_NAME "simplemqtt"
 
-// #define SIMPLEMQTT_DEBUG_SERIAL Serial
+#define SIMPLEMQTT_DEBUG_SERIAL Serial
 // #define SIMPLEMQTT_ERROR_SERIAL Serial
 // #define SIMPLEMQTT_DEBUG_MEMORY true
 
@@ -333,6 +339,15 @@ void setup() {
   mqttClient["testgroup/float"].printTo(Serial);
   mqttClient["/special"].printTo(Serial);
   mqttClient["/special/periodicint"].printTo(Serial);
+
+  Serial.print("arraysboolArray[0] = ");
+  Serial.println(arraysboolArrayTopic[0] ? "true" : "false");
+  arraysboolArrayTopic[0] = "true";
+  Serial.print("arraysboolArray[0] = ");
+  Serial.println(arraysboolArrayTopic[0] ? "true" : "false");
+
+  Serial.print("arraysboolArray_const[0] = ");
+  Serial.println(arraysboolArrayTopic_const[0] ? "true" : "false");
 }
 
 void loop() {

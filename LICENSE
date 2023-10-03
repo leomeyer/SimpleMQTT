@@ -1,7 +1,8 @@
 MIT License
 
-SimpleMQTT: An ESP8266/ESP32 library to simplify MQTT integration for IoT devices.
+SimpleMQTT: A library to simplify MQTT integration for IoT devices.
 Copyright (c) 2023 Leo Meyer
+https://github.com/leomeyer/SimpleMQTT
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

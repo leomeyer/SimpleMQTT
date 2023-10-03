@@ -77,6 +77,10 @@ public:
     return _value;
   };
 
+  inline operator T() const {
+	  return value();
+  };
+
   // Sets the current value of this topic. Returns whether the value has changed.
   // Does not modify the Changed flag.
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types

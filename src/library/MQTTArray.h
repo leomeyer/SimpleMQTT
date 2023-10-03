@@ -10,13 +10,64 @@ class MQTTArray : public MQTTTopic {
 friend class MQTTGroup;
 
 protected:
+  typedef typename std::remove_pointer_t<T> E;
   typedef ResultCode (*PayloadHandler)(MQTTArray<T>& object, const char* payload);
   PayloadHandler payloadHandler = [](MQTTArray<T>& object, const char* payload) {
     return object.setFromPayload(payload);
   };
   typename std::remove_const_t<T> array = nullptr;
   size_t length = 0;
-  typename mqtt_variable<std::remove_pointer_t<T>>::type helper;  // conversion helper
+  typename mqtt_variable<E>::type helper;  // conversion helper
+
+  template<typename E>
+  class ElementProxy {
+    MQTTArray<T>* parent;
+    size_t index;
+
+  public:
+    ElementProxy(MQTTArray<T>* aParent, size_t anIndex) : parent(aParent), index(anIndex) {}; 
+
+    // Returns the current value of this topic.
+    E value() const {
+      if (index >= parent->length)
+        return E{};
+      return parent->array[index];
+    };
+
+    inline operator E() const {
+      return value();
+    };
+
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+    inline ElementProxy<E>& operator=(const E& newValue) {
+      if (index < parent->length) {
+        parent->set(index, newValue);
+      }
+      return *this;
+    };
+
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+    ResultCode setFromPayload(const char* payload) {
+      Serial.print("ElementProxy.setFromPayload(");
+      Serial.print(index);
+      Serial.print(", ");
+      Serial.print(payload);
+      Serial.println(")");
+
+      return parent->setFromPayload(index, payload);
+    };
+
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+    inline ElementProxy<E>& operator=(const char* payload) { setFromPayload(payload); return *this; };
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+    inline ElementProxy<E>& operator=(char* payload) { setFromPayload(payload); return *this; };
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
+    inline ElementProxy<E>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
+    inline ElementProxy<E>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+    template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+    inline ElementProxy<E>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
+  };
 
   MQTTArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, T arr, size_t elementCount)
     : MQTTTopic(aParent, aTopic, aConfig),
@@ -75,13 +126,46 @@ public:
     return length;
   };
 
-  virtual bool set(T sourceArray, bool publish = false) {
+  template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+  bool set(T sourceArray, bool publish = false) {
     SIMPLEMQTT_CHECK_VALID(false);
     bool changed = !_isEqual(sourceArray);
     _setValue(sourceArray);
-    if (MQTTTopic::isAutoPublish() || publish)
+    if (changed && (MQTTTopic::isAutoPublish() || publish))
       MQTTTopic::republish();
     return changed;
+  };
+
+  // Sets the value of the element at the given index. Returns whether the value has changed
+  // and auto-publishes the array if necessary.
+  template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+  bool set(size_t index, E newValue) {
+    SIMPLEMQTT_CHECK_VALID(false);
+    if (index >= length)
+      return false;
+    helper.setPointer(&array[index]);
+    helper.hasBeenChanged();  // clear flag
+    helper.setTo(newValue);
+    bool changed = helper.hasBeenChanged();
+    if (changed && MQTTTopic::isAutoPublish())
+      MQTTTopic::republish();
+    return changed;
+  };
+
+  // Sets the value of the element at the given index from the specified payload.
+  // Auto-publishes the array if necessary.
+  template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+  ResultCode setFromPayload(size_t index, const char* payload) {
+    SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
+    if (index >= length)
+      return ResultCode::CANNOT_SET;
+    helper.setPointer(&array[index]);
+    helper.hasBeenChanged();  // clear flag
+    helper.setFromPayload(payload);
+    bool changed = helper.hasBeenChanged();
+    if (changed && MQTTTopic::isAutoPublish())
+      MQTTTopic::republish();
+    return ResultCode::OK;
   };
 
   virtual MQTTArray<T>& setPayloadHandler(PayloadHandler handler) {
@@ -168,14 +252,11 @@ public:
     return helper;
   };
 
-  // Returns a pointer to the element at index i. Does not perform range checking.
-  T get(size_t i) {
-    SIMPLEMQTT_CHECK_VALID(T{});
-    return &array[i];
+  ElementProxy<E> get(size_t i) {
+    return ElementProxy<E>(this, i);
   };
 
-  // Returns a pointer to the element at index i. Does not perform range checking.
-  inline T operator[](size_t i) {
+  inline ElementProxy<E> operator[](size_t i) {
     return get(i);
   };
 };
