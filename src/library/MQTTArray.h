@@ -5,6 +5,14 @@
 // https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
+// An array of the underlying data type with a specified constant length.
+// Is settable if the underlying data type is not const.
+// Access to the array's elements is provided via get() and set() methods.
+// Alternatively the index operator [] can be used. If the index is out of bounds
+// the getter returns the default value while the setter does nothing.
+// Elements are formatted using the format specified with setFormat().
+// The separator character for the string representation of the array can be
+// set or retrieved using setSeparator() or getSeparator() respectively.
 template<typename T>
 class MQTTArray : public MQTTTopic {
 friend class MQTTGroup;
@@ -17,6 +25,7 @@ protected:
   };
   typename std::remove_const_t<T> array = nullptr;
   size_t length = 0;
+  char separator = ',';
   typename mqtt_variable<E>::type helper;  // conversion helper
 
   template<typename E>
@@ -40,20 +49,23 @@ protected:
 
     template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
     inline ElementProxy<E>& operator=(const E& newValue) {
-      if (index < parent->length) {
-        parent->set(index, newValue);
-      }
+      parent->set(index, newValue);
       return *this;
     };
 
+    inline String getPayload() const {
+      return parent->getPayload(index);
+    }
+
     template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
     ResultCode setFromPayload(const char* payload) {
+/*      
       Serial.print("ElementProxy.setFromPayload(");
       Serial.print(index);
       Serial.print(", ");
       Serial.print(payload);
       Serial.println(")");
-
+*/
       return parent->setFromPayload(index, payload);
     };
 
@@ -77,7 +89,7 @@ protected:
 
   inline String type() const override {
     String result("");
-    if constexpr (std::is_const_v<std::remove_pointer_t<T>>)
+    if constexpr (std::is_const_v<E>)
       result += "!";
     result += "[";
     result += length;
@@ -88,7 +100,7 @@ protected:
   template<typename U = T, typename std::enable_if<!std::is_const_v<std::remove_pointer_t<U>>, bool>::type* = nullptr> // only for non-const types
   void _setValue(T const sourceArray) {
     SIMPLEMQTT_CHECK_VALID();
-    memcpy(array, sourceArray, sizeof(std::remove_pointer_t<T>) * length);
+    memcpy(array, sourceArray, sizeof(E) * length);
   };
 
   template<typename U = T, typename std::enable_if<std::is_const_v<std::remove_pointer_t<U>>, bool>::type* = nullptr> // only for const types
@@ -96,7 +108,7 @@ protected:
 
   virtual bool _isEqual(T other) {
     SIMPLEMQTT_CHECK_VALID(false);
-    return memcmp(array, other, sizeof(std::remove_pointer_t<T>) * length) == 0;
+    return memcmp(array, other, sizeof(E) * length) == 0;
   };
 
   ResultCode setReceived(const char* payload) override {
@@ -108,24 +120,7 @@ protected:
     return setFromPayload(payload);
   };
 
-public:
-  SIMPLEMQTT_OVERRIDE_SETTERS(MQTTArray<T>)
-
-  bool isSettable() const override {
-    SIMPLEMQTT_CHECK_VALID(false);
-    if (!MQTTTopic::isSettable())
-      return false;
-    if constexpr (std::is_const_v<T>)
-      return false;
-    if constexpr (std::is_const_v<std::remove_pointer_t<T>>)
-      return false;
-    return helper.isSettable();
-  };
-
-  size_t size() {
-    return length;
-  };
-
+  // Copies the values from the source array into this array.
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
   bool set(T sourceArray, bool publish = false) {
     SIMPLEMQTT_CHECK_VALID(false);
@@ -134,6 +129,54 @@ public:
     if (changed && (MQTTTopic::isAutoPublish() || publish))
       MQTTTopic::republish();
     return changed;
+  };
+
+public:
+  SIMPLEMQTT_OVERRIDE_SETTERS(MQTTArray<T>)
+
+  bool isSettable() const override {
+    SIMPLEMQTT_CHECK_VALID(false);
+    if (!MQTTTopic::isSettable())
+      return false;
+    if constexpr (std::is_const_v<E>)
+      return false;
+    return true;
+  };
+
+  // Returns the length of the array as specified during initialization.
+  size_t size() const {
+    return length;
+  };
+
+  inline char getSeparator() const {
+    return separator;
+  }
+
+  inline void setSeparator(const char s) {
+    if (s != '\0')
+      separator = s;
+  }
+
+  String getPayload(size_t index) const {
+    SIMPLEMQTT_CHECK_VALID(String());
+    String result;
+    if (index <= length) {
+      const_cast<MQTTArray<T>*>(this)->helper.setPointer(&array[index]);
+      result += helper.getPayload();
+    }
+    return result;
+  };
+
+  String getPayload() const override {
+    SIMPLEMQTT_CHECK_VALID(String());
+    String result;
+    for (size_t i = 0; i < length; i++) {
+      const_cast<MQTTArray<T>*>(this)->helper.setPointer(&array[i]);
+      result += helper.getPayload();
+      if (i < length - 1)
+        result += separator;
+    }
+    return result;
   };
 
   // Sets the value of the element at the given index. Returns whether the value has changed
@@ -185,9 +228,9 @@ public:
       return ResultCode::CANNOT_SET;
     else {
       // target array
-      std::remove_const_t<std::remove_pointer_t<T>> newValues[length];
+      std::remove_const_t<E> newValues[length];
       // copy current values
-      memcpy(newValues, array, sizeof(std::remove_pointer_t<T>) * length);
+      memcpy(newValues, array, sizeof(E) * length);
       // iterate through values
       // expected format: "<v1>,<v2>,..."
       size_t i = 0;
@@ -195,7 +238,7 @@ public:
       while (*s != '\0' && i < length) {
         // modifies payload temporarily in-place
         char* e = (char*)s;
-        while (*e != ',' && *e != '\0') {
+        while (*e != separator && *e != '\0') {
           e++;
         }
         // empty value? skip
@@ -213,7 +256,7 @@ public:
         if (code != ResultCode::OK)
           return code;
         if (!atEnd) {
-          *e = ',';
+          *e = separator;
           s = e + 1;
         } else
           break;
@@ -225,30 +268,18 @@ public:
     }
   };
 
-  String getPayload() const override {
-    SIMPLEMQTT_CHECK_VALID(String());
-    String result;
-    for (size_t i = 0; i < length; i++) {
-      const_cast<MQTTArray<T>*>(this)->helper.setPointer(&array[i]);
-      result += helper.getPayload();
-      if (i < length - 1)
-        result += ",";
-    }
-    return result;
-  };
-
-  virtual typename format_type<std::remove_pointer_t<T>>::type getFormat() {
-    SIMPLEMQTT_CHECK_VALID(typename format_type<std::remove_pointer_t<T>>::type{});
+  virtual typename format_type<E>::type getFormat() {
+    SIMPLEMQTT_CHECK_VALID(typename format_type<E>::type{});
     return helper.format;
   };
 
-  virtual MQTTArray<T>& setFormat(typename format_type<std::remove_pointer_t<T>>::type aFormat) {
+  virtual MQTTArray<T>& setFormat(typename format_type<E>::type aFormat) {
     SIMPLEMQTT_CHECK_VALID(*this);
     helper.format = aFormat;
     return *this;
   };
 
-  virtual typename mqtt_variable<std::remove_pointer_t<T>>::type& element() {
+  virtual typename mqtt_variable<E>::type& element() {
     return helper;
   };
 
