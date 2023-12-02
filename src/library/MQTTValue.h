@@ -133,7 +133,8 @@ public:
     T newValue = _value;
     if (!parseValue(payload, &newValue))
       return ResultCode::INVALID_PAYLOAD;
-    _set(newValue);
+    bool changed = _set(newValue);
+    MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
     return ResultCode::OK;
   };
 
