@@ -11,8 +11,6 @@
 
 #include "PubSubClient.h"  // https://github.com/knolleary/pubsubclient
 
-#define SIMPLEMQTT_JSON_BUFFERSIZE    2048
-
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   #include <ArduinoJson.h>
 #endif
@@ -50,17 +48,31 @@
   #endif
 #endif
 
+#ifndef SIMPLEMQTT_DEBUG_PREFIX
+  #define SIMPLEMQTT_DEBUG_PREFIX  PSTR("[MQTT] DBG ")
+#endif
+
+#ifndef SIMPLEMQTT_ERROR_PREFIX
+  #define SIMPLEMQTT_ERROR_PREFIX  PSTR("[MQTT] ERR ")
+#endif
+
 #ifndef SIMPLEMQTT_TIMESTAMP
   #define SIMPLEMQTT_TIMESTAMP     PSTR("%d ms: "), millis()
 #endif
 
 #ifdef SIMPLEMQTT_DEBUG_SERIAL
-  #define SIMPLEMQTT_DEBUG(...)    { SIMPLEMQTT_DEBUG_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); SIMPLEMQTT_DEBUG_SERIAL.printf_P(__VA_ARGS__); }
+  #define SIMPLEMQTT_DEBUG(...)    { \
+    SIMPLEMQTT_DEBUG_SERIAL.printf_P(SIMPLEMQTT_DEBUG_PREFIX); \
+    SIMPLEMQTT_DEBUG_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); \
+    SIMPLEMQTT_DEBUG_SERIAL.printf_P(__VA_ARGS__); }
 #else
   #define SIMPLEMQTT_DEBUG(...)    {}
 #endif
 #ifdef SIMPLEMQTT_ERROR_SERIAL
-  #define SIMPLEMQTT_ERROR(...)    { SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); SIMPLEMQTT_ERROR_SERIAL.printf_P(__VA_ARGS__); }
+  #define SIMPLEMQTT_ERROR(...)    { \
+    SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_ERROR_PREFIX); \ 
+    SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); \
+    SIMPLEMQTT_ERROR_SERIAL.printf_P(__VA_ARGS__); }
 #else
   #define SIMPLEMQTT_ERROR(...)    {}
 #endif

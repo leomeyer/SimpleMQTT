@@ -117,6 +117,20 @@ protected:
 
   virtual bool processPayload(SimpleMQTTClient* client, const char* topic, const char* payload);
 
+  // Attempts to set this topic's value from the supplied payload string.
+  // Returns a ResultCode that indicates success or the reason of failure.
+  virtual ResultCode setFromPayload(const char* payload) {
+    SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
+    SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD;
+    return ResultCode::CANNOT_SET;
+  };
+
+  // Prints extra information about this topic, if applicable.
+  // Should not include newline.
+  virtual size_t printExtras(Print& p, size_t indent) const { 
+    return 0;
+  };
+
 public:
   static MQTTTopic INVALID_TOPIC;
 
@@ -228,14 +242,6 @@ public:
   // Is only used if the topic is settable.
   virtual String getSetTopic();
 
-  // Attempts to set this topic's value from the supplied payload string.
-  // Returns a ResultCode that indicates success or the reason of failure.
-  virtual ResultCode setFromPayload(const char* payload) {
-    SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
-    SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD;
-    return ResultCode::CANNOT_SET;
-  };
-
   // Returns the current value of this topic as a String.
   virtual String getPayload() const {
     return String();
@@ -284,7 +290,7 @@ public:
     SIMPLEMQTT_CHECK_VALID(false);
     return ((config >> CHANGED_BIT) & 1) == 1;
   };
-  
+
   // Prints information about this topic to the specified Print object.
   virtual size_t printTo(Print& p, size_t indent) const {
     size_t n = 0;
@@ -298,7 +304,9 @@ public:
       n += p.print(" (");
       n += p.print(getConfigStr());
       n += p.print("): ");
-      n += p.println(getPayload());
+      n += p.print(getPayload());
+      n += printExtras(p, indent);  // topic extras should not include newline
+      n += p.println();
     }
     return n;
   };

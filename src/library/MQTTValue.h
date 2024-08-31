@@ -46,7 +46,7 @@ protected:
       return false;
     bool changed = !this->_isEqual(newValue);
     _setValue(newValue);
-    if (MQTTTopic::isAutoPublish())
+    if (changed && MQTTTopic::isAutoPublish())
       MQTTTopic::republish();
     return changed;
   };
@@ -55,9 +55,23 @@ protected:
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
     if (MQTTTopic::isAutoPublish())
       MQTTTopic::republish();
-    if (payloadHandler != nullptr)
-      return payloadHandler(*this, payload);
-    return setFromPayload(payload);
+    return setFrom(payload);
+  };
+
+  // Attempts to set this topic's value from the supplied payload string.
+  // Returns a ResultCode that indicates success or the reason of failure.
+  // Default implementation of the payload handler.
+  ResultCode setFromPayload(const char* payload) override {
+    SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
+    SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD;
+    if constexpr (std::is_const_v<T>)
+      return ResultCode::CANNOT_SET;
+    T newValue = _value;
+    if (!parseValue(payload, &newValue))
+      return ResultCode::INVALID_PAYLOAD;
+    bool changed = _set(newValue);
+    MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
+    return ResultCode::OK;
   };
 
 public:
@@ -82,18 +96,11 @@ public:
   };
 
   // Sets the current value of this topic. Returns whether the value has changed.
-  // Does not modify the Changed flag.
+  // Does not modify the Changed flag or apply formatting rules.
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
   inline bool set(T newValue) {
     SIMPLEMQTT_CHECK_VALID(false);
     return _set(newValue);
-  };
-
-  template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
-  inline MQTTValue<T>& operator=(const T& newValue) {
-    SIMPLEMQTT_CHECK_VALID(*this);
-    _set(newValue);
-    return *this;
   };
 
   // Sets the current value of this topic.
@@ -104,6 +111,26 @@ public:
     SIMPLEMQTT_CHECK_VALID(*this);
     bool changed = _set(newValue);
     MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
+    return *this;
+  };
+
+  ResultCode setFrom(const char* payload) {
+    SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
+    if (payloadHandler != nullptr)
+      return payloadHandler(*this, payload);
+    return setFromPayload(payload);
+  };
+
+  // Assigns a new value to the topic. The new value is converted to a string
+  // and parsed using the installed payload handler. This means that all validations
+  // and formatting rules are applied.
+  // Checks whether the new value is different from the current value
+  // and sets the Changed flag on the topic if this is the case.
+  template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
+  inline MQTTValue<T>& operator=(const T& newValue) {
+    SIMPLEMQTT_CHECK_VALID(*this);
+    String s = __internal::formatValue(newValue, this->format);
+    setFrom(s.c_str());
     return *this;
   };
 
@@ -123,31 +150,16 @@ public:
     return __internal::parseValue(str, newValue, MQTTFormattedTopic<T>::format);
   };
 
-  // Attempts to set this topic's value from the supplied payload string.
-  // Returns a ResultCode that indicates success or the reason of failure.
-  ResultCode setFromPayload(const char* payload) override {
-    SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
-    SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD;
-    if constexpr (std::is_const_v<T>)
-      return ResultCode::CANNOT_SET;
-    T newValue = _value;
-    if (!parseValue(payload, &newValue))
-      return ResultCode::INVALID_PAYLOAD;
-    bool changed = _set(newValue);
-    MQTTTopic::setChanged(MQTTTopic::hasBeenChanged(false) || changed);
-    return ResultCode::OK;
-  };
-
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
-  inline MQTTValue<T>& operator=(const char* payload) { setFromPayload(payload); return *this; };
+  inline MQTTValue<T>& operator=(const char* payload) { setFrom(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
-  inline MQTTValue<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
+  inline MQTTValue<T>& operator=(char* payload) { setFrom(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
-  inline MQTTValue<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
+  inline MQTTValue<T>& operator=(const String& payload) { setFrom(payload.c_str()); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
-  inline MQTTValue<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+  inline MQTTValue<T>& operator=(const std::string& payload) { setFrom(payload.c_str()); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
-  inline MQTTValue<T>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
+  inline MQTTValue<T>& operator=(const __FlashStringHelper* payload) { setFrom((String() + payload).c_str()); return *this; };
 };
 
 template<class T>

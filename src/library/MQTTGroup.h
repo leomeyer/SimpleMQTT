@@ -374,6 +374,15 @@ public:
   MQTTJsonTopic& addJsonTopic(__internal::_Topic topic, JsonDocument* filter = nullptr) {
     SIMPLEMQTT_ADD_BODY(MQTTJsonTopic&, MQTTJsonTopic, this, topic, getConfig(), filter);
   };
+#else
+  template <typename...>
+  struct always_false { static constexpr bool value = false; };
+
+  template <typename... Ts>
+  MQTTTopic& addJsonTopic(Ts&&...) {
+    static_assert(always_false<Ts...>::value,
+      "To use Json functions please '#define SIMPLEMQTT_JSON_BUFFERSIZE 2048' or similar before including this library.");
+  };
 #endif
 
   // Returns the number of child topics in this group.
@@ -487,6 +496,7 @@ public:
         n += node->data->printTo(p, indent + 2);
         node = node->next;
       }
+      n += printExtras(p, indent + 2);  // group extras should include newline
       for (size_t i = 0; i < indent; i++)
         n += p.print(" ");
       n += p.print("} (");
