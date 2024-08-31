@@ -11,7 +11,7 @@ friend class MQTTGroup;
 friend class SimpleMQTTClient;
 
 protected:
-  StaticJsonDocument<SIMPLEMQTT_JSON_BUFFERSIZE> jdoc;
+  JsonDocument jdoc;
   JsonDocument* filter;
 
   MQTTJsonTopic(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, JsonDocument* aFilter)
@@ -89,7 +89,7 @@ public:
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
     SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD;
 
-    DynamicJsonDocument newDoc(SIMPLEMQTT_JSON_BUFFERSIZE);
+    JsonDocument newDoc;
     ResultCode code = _deserialize(newDoc, payload, filter);
     if (code == ResultCode::OK)
       _set(newDoc);
