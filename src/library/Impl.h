@@ -61,22 +61,22 @@ String MQTTTopic::getSetTopic() {
 
 void MQTTTopic::addSubscriptions(SimpleMQTTClient* client) {
   SIMPLEMQTT_CHECK_VALID();
-  SIMPLEMQTT_DEBUG(PSTR("Adding subscriptions for '%s', config: %s\n"), getFullTopic().c_str(), getConfigStr().c_str());
+  SIMPLEMQTT_DEBUG(PSTR("Preparing subscriptions for '%s', config: %s\n"), getFullTopic().c_str(), getConfigStr().c_str());
   if (isTopicValid()) {
     if (isRequestable()) {
       String request_topic = client->getFinalTopic(getRequestTopic());
       const char* topic = request_topic.c_str();
-      SIMPLEMQTT_DEBUG(PSTR("Subscribing to request with topic '%s'\n"), topic);
+      SIMPLEMQTT_DEBUG(PSTR("  Subscribing request with topic '%s'\n"), topic);
       client->subscribe(topic);
     }
     if (isSettable()) {
       String set_topic = client->getFinalTopic(getSetTopic());
       const char* topic = set_topic.c_str();
-      SIMPLEMQTT_DEBUG(PSTR("Subscribing to set with topic '%s'\n"), topic);
+      SIMPLEMQTT_DEBUG(PSTR("  Subscribing set with topic '%s'\n"), topic);
       client->subscribe(topic);
     }
   } else
-    SIMPLEMQTT_DEBUG(PSTR("Not valid, skipping: '%s'\n"), getFullTopic().c_str());
+    SIMPLEMQTT_DEBUG(PSTR("Invalid topic, skipping: '%s'\n"), getFullTopic().c_str());
 }
 
 bool MQTTTopic::processPayload(SimpleMQTTClient* client, const char* topic, const char* payload) {
