@@ -50,10 +50,38 @@ protected:
   };
 
   virtual bool connect() {
+#ifdef SIMPLEMQTT_DEBUG_SERIAL    
+    String debug(PSTR("Client '"));
+    debug += mqttClientName;
+    debug += F("' connecting to tcp://");
+    if (mqttUser != nullptr) {
+      debug += mqttUser;
+      debug += F("@");
+    }
+    debug += mqttHost;
+    debug += F(":");
+    debug += String(mqttPort);
+    if (mqttWill != nullptr) {
+      debug += F(" [will topic: '");
+      debug += mqttWill->name();
+      debug += F("', value: ");
+      debug += mqttWill->getMessage();
+      debug += F("]\n");
+    }
+    SIMPLEMQTT_DEBUG(debug.c_str());
+#endif
     if (mqttWill != nullptr)
       return PubSubClient::connect(mqttClientName, mqttUser, mqttPassword, getFinalTopic(mqttWill->getFullTopic()).c_str(), mqttWill->getQoS(), mqttWill->isRetained(), mqttWill->getMessage(), cleanSession);
     else
       return PubSubClient::connect(mqttClientName, mqttUser, mqttPassword);
+  };
+
+  size_t printExtras(Print& p, size_t indent) const override {
+    size_t n = 0;
+    if (mqttWill != nullptr) {
+      mqttWill->printTo(p, indent);
+    }
+    return n;
   };
 
 public:
@@ -224,49 +252,56 @@ public:
   };
 
   State handle(State previousState) {
+    // disconnected? need to connect
+    if (previousState == State::DISCONNECTED && !connected()) {
     // initial connect attempt?
-    if (previousState == State::DISCONNECTED && !connected() && state() != MQTT_CONNECTION_LOST) {
-      // checks
-      if (mqttClientName[0] == '\0') {
-        SIMPLEMQTT_ERROR(PSTR("SimpleMQTTClient name invalid\n"));
-        return State::INVALID_NAME;
-      }
-      if (mqttHost[0] == '\0') {
-        SIMPLEMQTT_ERROR(PSTR("SimpleMQTTClient host name invalid\n"));
-        return State::INVALID_HOST;
-      }
-      if (!isTopicValid()) {
-        SIMPLEMQTT_ERROR(PSTR("SimpleMQTTClient topic invalid: '%s'\n"), topic.get());
-        return State::INVALID_TOPIC;
-      }
-
-      // setup
-      setServer(mqttHost, mqttPort);
-      setCallback([this](char* topic, uint8_t* payload, unsigned int length) {
-        if (!this->payloadReceived(topic, payload, length)) {
-          if (this->callback)
-            this->callback(topic, payload, length);
-          else
-            this->setStatus((int8_t)ResultCode::UNKNOWN_TOPIC, String("Unknown topic: ") + topic);
+      if (state() != MQTT_CONNECTION_LOST) {
+        // checks
+        if (mqttClientName == nullptr || mqttClientName[0] == '\0') {
+          SIMPLEMQTT_ERROR(PSTR("Client name not specified\n"));
+          return State::INVALID_NAME;
         }
-      });
+        if (mqttHost == nullptr || mqttHost[0] == '\0') {
+          SIMPLEMQTT_ERROR(PSTR("Host name not specified\n"));
+          return State::INVALID_HOST;
+        }
+        if (!isTopicValid()) {
+          SIMPLEMQTT_ERROR(PSTR("Client topic invalid: '%s'\n"), topic.get());
+          return State::INVALID_TOPIC;
+        }
 
-#if SIMPLEMQTT_JSON_BUFFERSIZE > 0
-      // increase buffer size to allow for larger Json messages
-      setBufferSize(SIMPLEMQTT_JSON_BUFFERSIZE);
+        // setup
+        setServer(mqttHost, mqttPort);
+        setCallback([this](char* topic, uint8_t* payload, unsigned int length) {
+          if (!this->payloadReceived(topic, payload, length)) {
+            if (this->callback)
+              this->callback(topic, payload, length);
+            else
+              this->setStatus((int8_t)ResultCode::UNKNOWN_TOPIC, String("Unknown topic: ") + topic);
+          }
+        });
+
+ #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
+        // increase buffer size to allow for larger Json messages
+        setBufferSize(SIMPLEMQTT_JSON_BUFFERSIZE);
 #endif
+      }
 
       // try to connect
-      SIMPLEMQTT_DEBUG(PSTR("SimpleMQTTClient connecting...\n"));
       if (connect()) {
-        SIMPLEMQTT_DEBUG(PSTR("SimpleMQTTClient connected\n"));
+        // a possible will needs to be republished
+        if (mqttWill != nullptr)
+          mqttWill->republish();
+
+        SIMPLEMQTT_DEBUG(PSTR("Connection established\n"));
+        // PubSubClient processing
         loop();
         if (state() != MQTT_CONNECTED)
           return State::CONNECTING;
         else
           return State::RECONNECTED;
       } else {
-        SIMPLEMQTT_DEBUG(PSTR("SimpleMQTTClient disconnected\n"));
+        SIMPLEMQTT_DEBUG(PSTR("Disconnected\n"));
         return State::DISCONNECTED;
       }
     } else
