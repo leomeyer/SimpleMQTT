@@ -353,7 +353,7 @@ public:
 
 // The client implementation.
 template <typename T>
-class SimpleMQTTClient: public T, public MQTTClient {
+class MQTTClientImpl: public T, public MQTTClient {
 friend class MQTTTopic;
 
 private:
@@ -387,10 +387,10 @@ protected:
 
 public:
   template <typename... Args>
-  SimpleMQTTClient(Client& client, const char* clientName, Args... args)
+  MQTTClientImpl(Client& client, const char* clientName, Args... args)
     : T(client, args...), MQTTClient(clientName, (uint8_t)DEFAULT_CONFIG) {};
 
-  SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port = 1883, const char* user = nullptr, const char* password = nullptr, bool clean = true, MQTTConfig config = DEFAULT_CONFIG)
+  MQTTClientImpl(Client& client, const char* clientName, const char* host, int port = 1883, const char* user = nullptr, const char* password = nullptr, bool clean = true, MQTTConfig config = DEFAULT_CONFIG)
     : T(client), MQTTClient(clientName, host, port, user, password, clean, config) {};
 
   //////////////////////////////////////////

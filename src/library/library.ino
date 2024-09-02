@@ -15,12 +15,8 @@ ESP8266WiFiMulti wifiMulti;
 // add wifi SSIDs
 #include "secrets.h"
 
-#include "ArduinoMqttClient.h"
-#define MQTT_LIBRARY  MqttClient
-
-//#include "PubSubClient.h"  // https://github.com/knolleary/pubsubclient
-//#define MQTT_LIBRARY  PubSubClient
-
+//#include <ArduinoMqttClient.h>
+#include <PubSubClient.h>
 
 #define SIMPLEMQTT_DEBUG_SERIAL Serial
 // #define SIMPLEMQTT_ERROR_SERIAL Serial
@@ -32,7 +28,7 @@ using State = MQTTClient::State;
 
 #define CLIENT_NAME "simplemqtt"
 WiFiClient espClient;
-SimpleMQTTClient<MQTT_LIBRARY> mqttClient(espClient, CLIENT_NAME, MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASSWORD);
+SimpleMQTTClient mqttClient(espClient, CLIENT_NAME, MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASSWORD);
 MQTTWill will("connected", "0");
 auto& deviceCommand = mqttClient.add<String>("device_command");
 

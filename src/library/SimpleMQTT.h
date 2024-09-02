@@ -11,10 +11,31 @@
 
 #if defined(ESP8266) || defined(ESP32)
 #include <functional>
+#include <string>
 #endif
 
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   #include <ArduinoJson.h>
+#endif
+
+#define PubSubClientLibrary             1
+#define ArduinoMqttClientLibrary        2
+
+// check which client library to use
+#if __has_include(<ArduinoMqttClient.h>)
+  // https://github.com/arduino-libraries/ArduinoMqttClient
+  #define SIMPLEMQTT_CLIENT_LIBRARY   ArduinoMqttClientLibrary
+  #ifdef SIMPLEMQTT_DEBUG_SERIAL
+    #pragma message "----------------> SimpleMQTTClient is using this MQTT library: ArduinoMqttClient"
+  #endif
+#elif __has_include(<PubSubClient.h>)
+  // https://github.com/knolleary/pubsubclient
+  #define SIMPLEMQTT_CLIENT_LIBRARY   PubSubClientLibrary
+  #ifdef SIMPLEMQTT_DEBUG_SERIAL
+    #pragma message "----------------> SimpleMQTTClient is using this MQTT library: PubSubClient"
+  #endif
+#else
+  #error "The MQTT client library could not be determined. Before including this library please include one of [<ArduinoMqttClient.h>, <PubSubClient.h>]"
 #endif
 
 #ifndef SIMPLEMQTT_MAX_STATIC_RAM
@@ -196,17 +217,30 @@ namespace SimpleMQTT {
 
   #include "MQTTClient.h"
 
-#if __has_include("PubSubClient.h")
-  #include "MQTTPubSubClient.h"
+#if SIMPLEMQTT_CLIENT_LIBRARY == ArduinoMqttClientLibrary
+  #include "ArduinoMqttClientImpl.h"
+  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<MqttClient>
+#elif SIMPLEMQTT_CLIENT_LIBRARY == PubSubClientLibrary
+  #include "PubSubClientImpl.h"
+  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<PubSubClient>
+#else
+  #error "MQTT_CLIENT_LIBRARY not defined or not supported"
 #endif
 
-#if __has_include("ArduinoMqttClient.h")
-  #include "MQTTArduinoClient.h"
+#ifdef SIMPLEMQTT_DEBUG_SERIAL
+  #define _SM_VALUE_TO_STRING(x) #x
+  #define _SM_VALUE(x) _SM_VALUE_TO_STRING(x)
+  #define _SM_PRINT_MACRO_AT_COMPILE_TIME(text, var)  #text _SM_VALUE(var)
+  #pragma message _SM_PRINT_MACRO_AT_COMPILE_TIME("----------------> The actual SimpleMQTTClient implementation is: ", SIMPLEMQTT_IMPL_CLASS)
 #endif
 
   #include "Impl.h"
 
+  using SimpleMQTTClient = SIMPLEMQTT_IMPL_CLASS;
+
 } // namespace SimpleMQTT
+
+using SimpleMQTTClient = SimpleMQTT::SimpleMQTTClient;
 
 #ifndef SIMPLEMQTT_NO_AUTO_USING
 using namespace SimpleMQTT;

@@ -5,18 +5,17 @@
 // https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
-
-// SimpleMQTTClient specialization using MqttClient from the ArduinoMqttClient library
+// MQTTClientImpl specialization using MqttClient from the ArduinoMqttClient library
 
 namespace __ArduinoMQTT {
   // Inner hidden namespace for message callback function.
   // Unfortunately this is necessary because this library does not accept a lambda as callback
   // which means that only one instance of this client can be used at a time. 
 
-  SimpleMQTTClient<MqttClient>* client = nullptr;
+  MQTTClientImpl<MqttClient>* client = nullptr;
 
   void arduinoMqttClientOnMessage(int length) {
-    auto thisClient = static_cast<SimpleMQTTClient<MqttClient>*>(client);
+    auto thisClient = static_cast<MQTTClientImpl<MqttClient>*>(client);
     String topic = client->messageTopic();
     String payload = "";
     while (client->available())
@@ -27,7 +26,7 @@ namespace __ArduinoMQTT {
 }   // namespace __ArduinoMQTT
 
 template <>
-MQTTClient::State SimpleMQTTClient<MqttClient>::mqttSetup() {
+MQTTClient::State MQTTClientImpl<MqttClient>::mqttSetup() {
   // MqttClient setup
   MqttClient::setId(mqttClientName);
   MqttClient::setUsernamePassword(mqttUser, mqttPassword);
@@ -44,7 +43,7 @@ MQTTClient::State SimpleMQTTClient<MqttClient>::mqttSetup() {
 };
 
 template <>
-bool SimpleMQTTClient<MqttClient>::_mqttConnect() {
+bool MQTTClientImpl<MqttClient>::_mqttConnect() {
   if (!connect(mqttHost, mqttPort)) {
     // print out the error message:
     Serial.print("MQTT connection failed. Error no: ");
@@ -62,7 +61,7 @@ bool SimpleMQTTClient<MqttClient>::_mqttConnect() {
 };
 
 template <>
-MQTTClient::State SimpleMQTTClient<MqttClient>::mqttState() {
+MQTTClient::State MQTTClientImpl<MqttClient>::mqttState() {
   switch (MqttClient::connectError()) {
     case MQTT_CONNECTION_REFUSED: return State::ERROR;
     case MQTT_CONNECTION_TIMEOUT: return State::CONNECTION_TIMEOUT;
@@ -77,19 +76,19 @@ MQTTClient::State SimpleMQTTClient<MqttClient>::mqttState() {
 };
 
 template <>
-MQTTClient::State SimpleMQTTClient<MqttClient>::mqttLoop() {
+MQTTClient::State MQTTClientImpl<MqttClient>::mqttLoop() {
   // MqttClient loop
   poll();
   return mqttState();
 };
 
 template <>
-bool SimpleMQTTClient<MqttClient>::mqttConnected() {
+bool MQTTClientImpl<MqttClient>::mqttConnected() {
   return MqttClient::connected();
 };
 
 template <>
-bool SimpleMQTTClient<MqttClient>::mqttPublish(const String& topic, const char* payload, bool retained, uint8_t qos, bool dup) {
+bool MQTTClientImpl<MqttClient>::mqttPublish(const String& topic, const char* payload, bool retained, uint8_t qos, bool dup) {
   if (!MqttClient::connected())
     return false;
 
@@ -103,7 +102,7 @@ bool SimpleMQTTClient<MqttClient>::mqttPublish(const String& topic, const char* 
 };
 
 template <>
-bool SimpleMQTTClient<MqttClient>::mqttSubscribe(const String& topic, uint8_t qos) {
+bool MQTTClientImpl<MqttClient>::mqttSubscribe(const String& topic, uint8_t qos) {
   return MqttClient::subscribe(topic, qos);
 };
 

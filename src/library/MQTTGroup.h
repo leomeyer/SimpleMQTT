@@ -382,6 +382,7 @@ public:
   MQTTTopic& addJsonTopic(Ts&&...) {
     static_assert(always_false<Ts...>::value,
       "To use Json functions please '#define SIMPLEMQTT_JSON_BUFFERSIZE 2048' or similar before including this library.");
+    return MQTTTopic::INVALID_TOPIC;
   };
 #endif
 

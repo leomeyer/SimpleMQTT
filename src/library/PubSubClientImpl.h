@@ -5,11 +5,10 @@
 // https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
-
-// SimpleMQTTClient specialization using PubSubClient
+// MQTTClientImpl specialization using PubSubClient
 
 template <>
-MQTTClient::State SimpleMQTTClient<PubSubClient>::mqttSetup() {
+MQTTClient::State MQTTClientImpl<PubSubClient>::mqttSetup() {
   // PubSubClient setup
   PubSubClient::setServer(mqttHost, mqttPort);
   PubSubClient::setCallback([this](char* topic, uint8_t* payload, unsigned int length) {
@@ -25,7 +24,7 @@ MQTTClient::State SimpleMQTTClient<PubSubClient>::mqttSetup() {
 };
 
 template <>
-bool SimpleMQTTClient<PubSubClient>::_mqttConnect() {
+bool MQTTClientImpl<PubSubClient>::_mqttConnect() {
   if (mqttWill != nullptr)
     return PubSubClient::connect(mqttClientName, mqttUser, mqttPassword, getFinalTopic(mqttWill->getFullTopic()).c_str(), mqttWill->getQoS(), mqttWill->isRetained(), mqttWill->getMessage(), cleanSession);
   else
@@ -33,7 +32,7 @@ bool SimpleMQTTClient<PubSubClient>::_mqttConnect() {
 };
 
 template <>
-MQTTClient::State SimpleMQTTClient<PubSubClient>::mqttState() {
+MQTTClient::State MQTTClientImpl<PubSubClient>::mqttState() {
   switch (PubSubClient::state()) {
     case MQTT_CONNECTION_TIMEOUT: return State::CONNECTION_TIMEOUT;
     case MQTT_CONNECTION_LOST: return State::CONNECTION_LOST;
@@ -50,24 +49,24 @@ MQTTClient::State SimpleMQTTClient<PubSubClient>::mqttState() {
 };
 
 template <>
-MQTTClient::State SimpleMQTTClient<PubSubClient>::mqttLoop() {
+MQTTClient::State MQTTClientImpl<PubSubClient>::mqttLoop() {
   // PubSubClient loop
   loop();
   return mqttState();
 };
 
 template <>
-bool SimpleMQTTClient<PubSubClient>::mqttConnected() {
+bool MQTTClientImpl<PubSubClient>::mqttConnected() {
   return PubSubClient::connected();
 };
 
 template <>
-bool SimpleMQTTClient<PubSubClient>::mqttPublish(const String& topic, const char* payload, bool retained, uint8_t qos, bool dup) {
+bool MQTTClientImpl<PubSubClient>::mqttPublish(const String& topic, const char* payload, bool retained, uint8_t qos, bool dup) {
   return PubSubClient::publish(getFinalTopic(topic).c_str(), payload, retained);
 };
 
 template <>
-bool SimpleMQTTClient<PubSubClient>::mqttSubscribe(const String& topic, uint8_t qos) {
+bool MQTTClientImpl<PubSubClient>::mqttSubscribe(const String& topic, uint8_t qos) {
   return PubSubClient::subscribe(topic.c_str(), qos);
 };
 
