@@ -1,13 +1,13 @@
 /////////////////////////////////////////////////////////////////////
 // MQTTWill: Special will topic with a predefined disconnect message.
-// Add to SimpleMQTTClient (setWill) before connecting.
+// Add to MQTTClient (setWill) before connecting.
 // Copyright (c) Leo Meyer, leo@leomeyer.de
 // Licensed under the MIT license.
 // https://github.com/leomeyer/SimpleMQTT
 /////////////////////////////////////////////////////////////////////
 
 class MQTTWill : public MQTTReference<String> {
-friend class SimpleMQTTClient;
+friend class MQTTClient;
 
 protected:
   String str;
@@ -19,6 +19,8 @@ protected:
     if (message == nullptr)
       return 0;
     size_t n = 0;
+    for (size_t i = 0; i < indent; i++)
+      n += p.print(" ");
     n += p.print(F(" [will msg: '"));
     n += p.print(message);
     n += p.print(F("']"));

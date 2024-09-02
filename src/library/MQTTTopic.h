@@ -11,7 +11,7 @@ class MQTTTopic
   : public Printable
 #endif 
 {
-friend class SimpleMQTTClient;
+friend class MQTTClient;
 friend class MQTTGroup;
 
 protected:
@@ -59,11 +59,6 @@ protected:
     return result;
   }
 
-  bool isTopicValid() {
-    SIMPLEMQTT_CHECK_VALID(false);
-    return topic.isValid();
-  };
-
   virtual bool check() {
     SIMPLEMQTT_CHECK_VALID(false);
     return isTopicValid();
@@ -95,7 +90,7 @@ protected:
     topic.release();
   }
 
-  virtual MQTTTopic& get(const String& key, bool autoCreate = false) {
+  virtual MQTTTopic& get(const String& key, bool /*autoCreate*/) {
     SIMPLEMQTT_CHECK_VALID(MQTTTopic::INVALID_TOPIC);
     if (key.length() == 0)
       return *this;
@@ -113,9 +108,9 @@ protected:
   
   virtual void publish(bool all = false);
 
-  virtual void addSubscriptions(SimpleMQTTClient* client);
+  virtual void addSubscriptions(MQTTClient* client);
 
-  virtual bool processPayload(SimpleMQTTClient* client, const char* topic, const char* payload);
+  virtual bool processPayload(MQTTClient* client, const char* topic, const char* payload);
 
   // Attempts to set this topic's value from the supplied payload string.
   // Returns a ResultCode that indicates success or the reason of failure.
@@ -127,12 +122,17 @@ protected:
 
   // Prints extra information about this topic, if applicable.
   // Should not include newline.
-  virtual size_t printExtras(Print& p, size_t indent) const { 
+  virtual size_t printExtras(Print& /*p*/, size_t /*indent*/) const { 
     return 0;
   };
 
 public:
   static MQTTTopic INVALID_TOPIC;
+
+  bool isTopicValid() {
+    SIMPLEMQTT_CHECK_VALID(false);
+    return topic.isValid();
+  };
 
   // Returns the group topic that this topic belongs to.
   virtual MQTTGroup& parent() {
@@ -140,9 +140,10 @@ public:
   };
 
   // Returns the client used by this topic. May return nullptr.
-  virtual SimpleMQTTClient* getClient();
+  virtual MQTTClient* getClient();
 
-  virtual MQTTGroup& add(__internal::_Topic topic) {
+  // prototype for MTTQGroup addition
+  virtual MQTTGroup& add(__internal::_Topic /*topic*/) {
     return (MQTTGroup&)INVALID_TOPIC;
   };
 
@@ -159,7 +160,6 @@ public:
   };
 
   // Sets the Quality of Service for this topic. A value between 0 and 2.
-  // Only has an effect before the first call of the handle() function.
   virtual MQTTTopic& setQoS(uint8_t qos) {
     SIMPLEMQTT_CHECK_VALID(*this);
     config &= ~0b11;

@@ -8,7 +8,7 @@
 
 class MQTTJsonTopic : public MQTTTopic {
 friend class MQTTGroup;
-friend class SimpleMQTTClient;
+friend class MQTTClient;
 
 protected:
   JsonDocument jdoc;
@@ -62,7 +62,7 @@ public:
   auto operator[](const __FlashStringHelper* key) { return jdoc[key]; };
   auto operator[](std::string_view key) { return jdoc[key]; };
   auto add() {
-    return jdoc.add();
+    return jdoc.add<JsonVariant>();
   };
   template <typename TValue>
   auto add(const TValue& value) {

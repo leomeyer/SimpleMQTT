@@ -9,7 +9,7 @@
 // A group topic has no value of its own but manages a number of subtopics that can themselves be groups.
 class MQTTGroup : public MQTTTopic {
   friend class MQTTTopic;
-  friend class SimpleMQTTClient;
+  friend class MQTTClient;
 
 protected:
   typedef struct ListNode {
@@ -24,7 +24,7 @@ protected:
   String setPattern;
 
   MQTTGroup(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig)
-    : MQTTTopic(aParent, aTopic, aConfig){};
+    : MQTTTopic(aParent, aTopic, aConfig) {};
 
   inline String type() const override {
     return String("+");
@@ -169,9 +169,9 @@ protected:
     return true;
   };
 
-  virtual void addSubscriptions(SimpleMQTTClient* client) override;
+  virtual void addSubscriptions(MQTTClient* client) override;
 
-  virtual bool processPayload(SimpleMQTTClient* client, const char* topic, const char* payload) override;
+  virtual bool processPayload(MQTTClient* client, const char* topic, const char* payload) override;
 
 public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTGroup)
@@ -386,7 +386,7 @@ public:
 #endif
 
   // Returns the number of child topics in this group.
-  const size_t size() const {
+  size_t size() const {
     SIMPLEMQTT_CHECK_VALID(0);
     const ListNode* node = &nodes;
     size_t c = 0;
@@ -418,7 +418,7 @@ public:
     // not found; create?
     if (autoCreate) {
       MQTTTopic& result = add(part);
-      return result.get(rest);
+      return result.get(rest, autoCreate);
     }
     return MQTTTopic::INVALID_TOPIC;
   };

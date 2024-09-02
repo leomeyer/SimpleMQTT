@@ -25,7 +25,6 @@ enum class BoolFormat : uint8_t {
 static BoolFormat DEFAULT_BOOL_FORMAT = BoolFormat::ANY;
 static IntegralFormat DEFAULT_INTEGRAL_FORMAT = IntegralFormat::DECIMAL;
 static char* DEFAULT_FLOAT_FORMAT = nullptr;
-static char* DEFAULT_DOUBLE_FORMAT = nullptr;
 
 // general format type template
 template<typename T, typename Enable = void>
@@ -35,7 +34,7 @@ struct format_type { typedef NoFormat type; };
 template<typename T>
 struct format_type<T, typename std::enable_if<std::is_integral<T>::value>::type> { typedef IntegralFormat type; };
 
-// format type template for floating point types (char*)
+// format type template for floating point types (const char*)
 template<typename T>
 struct format_type<T, typename std::enable_if<std::is_floating_point<T>::value>::type> { typedef const char* type; };
 
@@ -101,10 +100,13 @@ namespace __internal {
 */
   template <typename T>
   String formatValue(T value, const char* format) { 
-    if (format == nullptr)
+    const char* fmt = format;
+    if (fmt == nullptr)
+      fmt = DEFAULT_FLOAT_FORMAT;
+    if (fmt == nullptr)
       return String(value);
     char buffer[SIMPLEMQTT_FRACTIONAL_CONVERSION_BUFFER];
-    snprintf(buffer, SIMPLEMQTT_FRACTIONAL_CONVERSION_BUFFER, format, value);
+    snprintf(buffer, SIMPLEMQTT_FRACTIONAL_CONVERSION_BUFFER, fmt, value);
     return String(buffer);
   }
 
@@ -253,7 +255,7 @@ namespace __internal {
     return true;
   }
   
-  bool parseValue(const char* str, const String* value, NoFormat) { 
+  bool parseValue(const char* /*str*/, const String* /*value*/, NoFormat) { 
     return false;
   }
   

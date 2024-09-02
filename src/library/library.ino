@@ -1,4 +1,6 @@
 
+
+
 #if defined(ESP8266)
   #include <ESP8266WiFiMulti.h>
 
@@ -13,26 +15,29 @@ ESP8266WiFiMulti wifiMulti;
 // add wifi SSIDs
 #include "secrets.h"
 
-#define CLIENT_NAME "simplemqtt"
+#include "ArduinoMqttClient.h"
+#define MQTT_LIBRARY  MqttClient
 
-// #define SIMPLEMQTT_DEBUG_SERIAL Serial
+//#include "PubSubClient.h"  // https://github.com/knolleary/pubsubclient
+//#define MQTT_LIBRARY  PubSubClient
+
+
+#define SIMPLEMQTT_DEBUG_SERIAL Serial
 // #define SIMPLEMQTT_ERROR_SERIAL Serial
 // #define SIMPLEMQTT_DEBUG_MEMORY true
 // use JSON; set larger buffer size for messages
 #define SIMPLEMQTT_JSON_BUFFERSIZE    2048
-
 #include <SimpleMQTT.h>
+using State = MQTTClient::State;
 
-using State = SimpleMQTTClient::State;
-
-// static initialization
+#define CLIENT_NAME "simplemqtt"
 WiFiClient espClient;
-SimpleMQTTClient mqttClient(espClient, CLIENT_NAME, MQTT_HOST);
+SimpleMQTTClient<MQTT_LIBRARY> mqttClient(espClient, CLIENT_NAME, MQTT_HOST, MQTT_PORT, MQTT_USER, MQTT_PASSWORD);
 MQTTWill will("connected", "0");
 auto& deviceCommand = mqttClient.add<String>("device_command");
 
 // fundamental values
-auto& values = mqttClient.add("values");
+auto& values = mqttClient.add("values").setQoS(1).setRetained(true);
 
 #define ADD_VALUE(parent, type, name) \
   auto& parent##name##Topic = parent.add<type>(#name, 42);
@@ -52,12 +57,12 @@ ADD_VALUE(values, double, double);
 */
 
 // variables
-auto& variables = mqttClient.add("variables");
+auto& variables = mqttClient.add("variables").setQoS(2);
 
 #define ADD_VARIABLE(parent, type, name) \
-  type parent##name##Var = 42; \
+  type parent##name##Var{}; \
   auto& parent##name##VarTopic = parent.add(#name, &parent##name##Var); \
-  const type parent##name##Var_const{ 42 }; \
+  const type parent##name##Var_const{}; \
   auto& parent##name##VarConstTopic = parent.add(#name "_const", &parent##name##Var_const);
 
 ADD_VARIABLE(variables, bool, bool);
@@ -180,7 +185,7 @@ auto& ac1Temp = mqttClient.add("/MHI-AC-Ctrl-1").add<float>("Tsht21");
 auto& json = mqttClient.add("json");  // must fail if SIMPLEMQTT_JSON_BUFFERSIZE not defined
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
 auto& testJson = json.addJsonTopic("testJson");
-StaticJsonDocument<200> gosund1StatusFilter;
+JsonDocument gosund1StatusFilter;
 auto& gosund1Status = json["/stat"].add("gosund1").addJsonTopic("STATUS8", &gosund1StatusFilter);
 #endif
 
@@ -245,8 +250,8 @@ struct Test {
   int timeout = DEFAULT_TEST_TIMEOUT;
 };
 
-#define PUBLISH_MUST_MODIFY_EQUAL(topic, value) []() { mqttClient.publish(mqttClient[#topic].getSetTopic().c_str(), #value); }, []() { return mqttClient[#topic].getPayload() == #value; }
-#define PUBLISH_MUST_NOT_MODIFY_UNEQUAL(topic, value, compare) []() { mqttClient.publish(mqttClient[#topic].getSetTopic().c_str(), #value); }, []() { return mqttClient[#topic].getPayload() != #compare; }, false
+#define PUBLISH_MUST_MODIFY_EQUAL(topic, value) []() { mqttClient.mqttPublish(mqttClient[#topic].getSetTopic(), #value); }, []() { return mqttClient[#topic].getPayload() == #value; }
+#define PUBLISH_MUST_NOT_MODIFY_UNEQUAL(topic, value, compare) []() { mqttClient.mqttPublish(mqttClient[#topic].getSetTopic(), #value); }, []() { return mqttClient[#topic].getPayload() != #compare; }, false
 
 Test tests[] = {
   { "Set bool value",                             PUBLISH_MUST_MODIFY_EQUAL(values/bool, false) },
@@ -292,7 +297,7 @@ void setup_wifi() {
 }
 
 void setup() {
-  Serial.begin(115200);
+  Serial.begin(74880);
   delay(500);
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
@@ -354,7 +359,7 @@ void setup() {
 
   // Serial.print("arraysboolArray[0] = ");
   // Serial.println(arraysboolArrayTopic[0] ? "true" : "false");
-  arraysboolArrayTopic[0] = "true";
+  // arraysboolArrayTopic[0] = "true";
   // Serial.print("arraysboolArray[0] = ");
   // Serial.println(arraysboolArrayTopic[0] ? "true" : "false");
 
@@ -373,17 +378,33 @@ void loop() {
 
   if (WiFi.status() == WL_CONNECTED) {
     digitalWrite(LED_BUILTIN, HIGH);
-    state = mqttClient.handle(state);
+    State newState = mqttClient.handle(state);
+    bool stateChange = newState != state;
+    state = newState;
 
-    if (state == State::RECONNECTED) {
-      lastPublishMillis = millis();
+    if (stateChange) {
+      Serial.printf("MQTT client state: %s\n", mqttClient.getStateText(state).c_str());
+      /*
+      switch (state) {
+        case State::BAD_CREDENTIALS: return "Bad credentials";
+        case State::INVALID_HOST: return "Invalid host";
+        case State::INVALID_TOPIC: return "Invalid topic";
+        case State::BAD_CLIENT_ID: return "Bad client ID";
+        case State::ERROR: return "Error";
+        case State::DISCONNECTED: return "Disconnected";
+        case State::CONNECTING: return "Connecting";
+        case State::RECONNECTED: return "Reconnected";
+        case State::CONNECTED: return "Connected";
+        case State::CONNECTION_LOST: return "Connection lost";
+        case State::CONNECTION_TIMEOUT: return "Timeout";
+      };
+      */
     }
   } else {
     digitalWrite(LED_BUILTIN, LOW);
   }
 
   if (mqttClient.connected()) {
-
     if (deviceCommand.hasBeenChanged()) {
       Serial.printf("Received device command: %s\n", deviceCommand.getPayload().c_str());
     }
@@ -399,7 +420,7 @@ void loop() {
       testJson.republish();
 #endif
       lastPublishMillis = millis();
-      runTests = true;
+//      runTests = true;
     }
 
     if (ac1Temp.hasBeenChanged()) {

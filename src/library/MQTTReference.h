@@ -8,6 +8,7 @@
 // A SimpleMQTT topic whose underlying variable is a reference of data type T.
 template<typename T>
 class MQTTReference : public MQTTValue<T> {
+friend class MQTTClient;
 friend class MQTTGroup;
 
 protected:
@@ -96,7 +97,7 @@ public:
     return s;
   };
 
-  ResultCode setFromPayload(const char* payload) override {
+  ResultCode setFromPayload(const char* /*payload*/) override {
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
     return ResultCode::CANNOT_SET;
   };

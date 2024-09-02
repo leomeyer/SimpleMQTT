@@ -8,9 +8,9 @@
 // A SimpleMQTT topic that represents a value with a given data type T.
 template<typename T>
 class MQTTValue : public MQTTFormattedTopic<T> {
+friend class MQTTClient;
 friend class MQTTGroup;
 friend class MQTTArray<T*>;
-friend class SimpleMQTTClient;
 
 protected:
   typedef ResultCode (*PayloadHandler)(MQTTValue<T>& object, const char* payload);

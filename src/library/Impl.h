@@ -10,7 +10,7 @@ Topic_P(invalidTopic, "-");
 MQTTTopic MQTTTopic::INVALID_TOPIC(nullptr, invalidTopic, 0);
 const void* __internal::INVALID_PTR = (void*)&MQTTTopic::INVALID_TOPIC;
 
-SimpleMQTTClient* MQTTTopic::getClient() {
+MQTTClient* MQTTTopic::getClient() {
   SIMPLEMQTT_CHECK_VALID(nullptr);
   return _parent->getClient();
 }
@@ -59,27 +59,25 @@ String MQTTTopic::getSetTopic() {
   return parent().applySetPattern(this);
 }
 
-void MQTTTopic::addSubscriptions(SimpleMQTTClient* client) {
+void MQTTTopic::addSubscriptions(MQTTClient* client) {
   SIMPLEMQTT_CHECK_VALID();
   SIMPLEMQTT_DEBUG(PSTR("Preparing subscriptions for '%s', config: %s\n"), getFullTopic().c_str(), getConfigStr().c_str());
   if (isTopicValid()) {
     if (isRequestable()) {
       String request_topic = client->getFinalTopic(getRequestTopic());
-      const char* topic = request_topic.c_str();
-      SIMPLEMQTT_DEBUG(PSTR("  Subscribing request with topic '%s'\n"), topic);
-      client->subscribe(topic);
+      SIMPLEMQTT_DEBUG(PSTR("  Subscribing request with topic '%s'\n"), request_topic.c_str());
+      client->mqttSubscribe(request_topic, getQoS());
     }
     if (isSettable()) {
       String set_topic = client->getFinalTopic(getSetTopic());
-      const char* topic = set_topic.c_str();
-      SIMPLEMQTT_DEBUG(PSTR("  Subscribing set with topic '%s'\n"), topic);
-      client->subscribe(topic);
+      SIMPLEMQTT_DEBUG(PSTR("  Subscribing set with topic '%s'\n"), set_topic.c_str());
+      client->mqttSubscribe(set_topic, getQoS());
     }
   } else
     SIMPLEMQTT_DEBUG(PSTR("Invalid topic, skipping: '%s'\n"), getFullTopic().c_str());
 }
 
-bool MQTTTopic::processPayload(SimpleMQTTClient* client, const char* topic, const char* payload) {
+bool MQTTTopic::processPayload(MQTTClient* client, const char* topic, const char* payload) {
   SIMPLEMQTT_CHECK_VALID(false);
   if (isRequestable()) {
     // request topic received?
@@ -120,7 +118,7 @@ bool MQTTTopic::processPayload(SimpleMQTTClient* client, const char* topic, cons
   return false;
 }
 
-void MQTTGroup::addSubscriptions(SimpleMQTTClient* client) {
+void MQTTGroup::addSubscriptions(MQTTClient* client) {
   SIMPLEMQTT_CHECK_VALID();
   MQTTTopic::addSubscriptions(client);
   ListNode* node = &nodes;
@@ -131,7 +129,7 @@ void MQTTGroup::addSubscriptions(SimpleMQTTClient* client) {
   }
 }
 
-bool MQTTGroup::processPayload(SimpleMQTTClient* client, const char* topic, const char* payload) {
+bool MQTTGroup::processPayload(MQTTClient* client, const char* topic, const char* payload) {
   SIMPLEMQTT_CHECK_VALID(false);
   if (MQTTTopic::processPayload(client, topic, payload))
     return true;

@@ -9,7 +9,9 @@
   #error This library requires a C++ standard of at least C++17!
 #endif
 
-#include "PubSubClient.h"  // https://github.com/knolleary/pubsubclient
+#if defined(ESP8266) || defined(ESP32)
+#include <functional>
+#endif
 
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   #include <ArduinoJson.h>
@@ -20,6 +22,8 @@
     #define SIMPLEMQTT_MAX_STATIC_RAM 4096
   #endif
 #endif
+
+#define SIMPLEMQTT_RETRY_AFTER_ERROR  5000
 
 #define SIMPLEMQTT_PAYLOAD_HANDLER [](auto& object, const char* payload)
 
@@ -70,7 +74,7 @@
 #endif
 #ifdef SIMPLEMQTT_ERROR_SERIAL
   #define SIMPLEMQTT_ERROR(...)    { \
-    SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_ERROR_PREFIX); \ 
+    SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_ERROR_PREFIX); \
     SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); \
     SIMPLEMQTT_ERROR_SERIAL.printf_P(__VA_ARGS__); }
 #else
@@ -159,9 +163,16 @@ namespace SimpleMQTT {
   #include "Internal.h"
 
   // forward class declarations
-  class SimpleMQTTClient;
+  class MQTTClient;
   class MQTTGroup;
   template <typename T> class MQTTArray;
+
+  // callback function type
+#if defined(ESP8266) || defined(ESP32)
+  typedef std::function<bool(MQTTClient* client, const char* topic, const char* payload, unsigned int length)> t_mqttCallback;
+#else
+  typedef bool (*t_mqttCallback)(MQTTClient* client, const char* topic, const char* payload, unsigned int length);
+#endif
 
   #include "MQTTTopic.h"
 
@@ -184,6 +195,14 @@ namespace SimpleMQTT {
   #include "MQTTWill.h"
 
   #include "MQTTClient.h"
+
+#if __has_include("PubSubClient.h")
+  #include "MQTTPubSubClient.h"
+#endif
+
+#if __has_include("ArduinoMqttClient.h")
+  #include "MQTTArduinoClient.h"
+#endif
 
   #include "Impl.h"
 
