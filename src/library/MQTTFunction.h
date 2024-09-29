@@ -134,7 +134,7 @@ public:
   inline MQTTSetFunction<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTSetFunction<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
-#if __has_include(<string>)
+#if SIMPLEMQTT_HAS_STD_STRING
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
   inline MQTTSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
 #endif
@@ -237,7 +237,7 @@ public:
   inline MQTTGetSetFunction<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTGetSetFunction<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
-#if __has_include(<string>)
+#if SIMPLEMQTT_HAS_STD_STRING
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
   inline MQTTGetSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
 #endif

@@ -45,8 +45,8 @@
 #ifdef DIRECT_CONNECTION
 
   // MQTT communication library
-  #include <ArduinoMqttClient.h>
-  // #include <PubSubClient.h>
+  // #include <ArduinoMqttClient.h>
+  #include <PubSubClient.h>
 
   // use JSON; set larger buffer size for messages
   #define SIMPLEMQTT_JSON_BUFFERSIZE    2048
@@ -328,6 +328,7 @@
     addAccessPoints();  // from secrets.h
     setup_wifi();
 
+    delay(5000);
     //  SimpleMQTT::DEFAULT_TOPIC_PATTERN = "test/%s";
 
     // DEFAULT_INTEGRAL_FORMAT = IntegralFormat::HEXADECIMAL;
@@ -442,7 +443,7 @@
         testJson.republish();
   #endif
         lastPublishMillis = millis();
-  //      runTests = true;
+        runTests = true;
       }
 
       if (ac1Temp.hasBeenChanged()) {
@@ -537,18 +538,6 @@
 
   #include <SoftwareSerial.h>
   SoftwareSerial softSerial(RX_PIN, TX_PIN);
-
-  int64_t strtoll(const char* str, char** endptr, uint8_t format) {
-    return 0;
-  }
-  uint64_t strtoull(const char* str, char** endptr, uint8_t format) {
-    return 0;
-  }
-
-  #include "type_traits.h"
-  #include <alloca.h>
-  
-  // #define SIMPLEMQTT_STATIC_MEMORY_SIZE 64
 
   #include <SimpleMQTT.h>
   using State = MQTTClient::State;

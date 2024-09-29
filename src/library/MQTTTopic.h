@@ -7,7 +7,7 @@
 
 // Base class for SimpleMQTT topics.
 class MQTTTopic
-#ifdef SIMPLEMQTT_TOPICS_PRINTABLE
+#ifdef SIMPLEMQTT_DEBUG_SERIAL
   : public Printable
 #endif 
 {
@@ -333,7 +333,7 @@ public:
 
   // Prints information about this topic to the specified Print object.
   // Implements the necessary method of the Printable interface.
-  virtual inline size_t printTo(Print& p) const {
+  inline size_t printTo(Print& p) const {
     return printTo(p, 0);
   };
 #endif

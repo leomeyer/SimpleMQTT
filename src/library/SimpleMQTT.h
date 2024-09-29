@@ -9,21 +9,44 @@
   #error This library requires a C++ standard of at least C++17!
 #endif
 
-#if defined(ESP8266) || defined(ESP32)
-#include <functional>
-#include <string>
-#endif
-
-#ifndef SIMPLEMQTT_BUFFERSIZE
-  #ifdef __AVR__
-    #define SIMPLEMQTT_BUFFERSIZE 64
-  #else
-    #define SIMPLEMQTT_BUFFERSIZE 256
+#ifdef FLASHEND
+  #if (FLASHEND < 0x7FFF)
+    #error This library requires at least 32 kB of program memory!
+  #endif
+  #if (FLASHEND == 0x7FFF)
+    #define SIMPLEMQTT_OPTIMIZE_MEMORY  true
   #endif
 #endif
 
-#if SIMPLEMQTT_JSON_BUFFERSIZE > 0
-  #include <ArduinoJson.h>
+#if defined(ESP8266) || defined(ESP32)
+  #include <functional>
+  #include <string>
+  #define SIMPLEMQTT_HAS_STD_STRING true
+
+#elif not __has_include("type_traits.h")  //defined(__AVR__)
+
+  #include "type_traits.h"    // C++17 STL
+  #include <alloca.h>
+
+  // provide missing conversion functions   
+  int64_t strtoll(const char* str, char** endptr, uint8_t format) {
+    return 0;
+  }
+  uint64_t strtoull(const char* str, char** endptr, uint8_t format) {
+    return 0;
+  }
+#endif
+
+#ifndef SIMPLEMQTT_BUFFERSIZE
+  #ifdef SIMPLEMQTT_OPTIMIZE_MEMORY
+    #define SIMPLEMQTT_BUFFERSIZE 64
+  #else
+    #define SIMPLEMQTT_BUFFERSIZE 256
+    // JSON is only available if there is enough memory
+    #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
+      #include <ArduinoJson.h>
+    #endif
+  #endif
 #endif
 
 #define PubSubClientLibrary             1
@@ -45,7 +68,7 @@
 #else
   #ifdef SIMPLEMQTT_DEBUG_SERIAL
     #pragma message "A MQTT client library could not be determined. To directly connect to a MQTT broker please include one of [<ArduinoMqttClient.h>, <PubSubClient.h>]."
-    #pragma message "The SimpleMQTTProxy is still available."
+    #pragma message "The StreamClientImpl for use with a proxy is still available."
   #endif
 #endif
 
@@ -112,7 +135,7 @@
 #endif
 
 #ifdef __AVR__
-  // primitive replacement for printf_P
+  // simple replacement for printf_P
   void _debugPrintf_P(Print& out, const char* fmt, va_list args) {
     PGM_P p = reinterpret_cast<PGM_P>(fmt);
     uint8_t c = pgm_read_byte(p++);
@@ -195,8 +218,6 @@
       SIMPLEMQTT_DEBUG_SERIAL.printf_P((const char*)SIMPLEMQTT_TIMESTAMP); \
       SIMPLEMQTT_DEBUG_SERIAL.printf_P((const char*)__VA_ARGS__); }
   #endif
-
-  #define SIMPLEMQTT_TOPICS_PRINTABLE   true
 #else
   #define SIMPLEMQTT_DEBUG(...)    {}
 #endif
@@ -219,8 +240,6 @@
 #ifndef SIMPLEMQTT_DEBUG_MEMORY
   #define SIMPLEMQTT_DEBUG_MEMORY false
 #endif
-
-// #define SIMPLEMQTT_OPTIMIZE_MEMORY  true
 
 #ifdef SIMPLEMQTT_OPTIMIZE_MEMORY
   #ifndef SIMPLEMQTT_OPTIMIZE_NO_SETTERS
@@ -349,7 +368,7 @@ namespace SimpleMQTT {
   #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<MqttClient, Client>
 #elif SIMPLEMQTT_CLIENT_LIBRARY == PubSubClientLibrary
   #include "PubSubClientImpl.h"
-  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<PubSubClient, Client>
+  #define SIMPLEMQTT_IMPL_CLASS  PubSubClientImpl
 #else
   // #error "MQTT_CLIENT_LIBRARY not defined or not supported"
   #include "StreamClientImpl.h"

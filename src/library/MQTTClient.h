@@ -312,7 +312,7 @@ protected:
 
 public:
 
-  #ifdef __AVR__
+  #ifndef SIMPLEMQTT_OPTIMIZE_MEMORY
   String getStateText(State state) {
       // low RAM
       return String((int)state);
@@ -598,8 +598,6 @@ private:
   void* operator new[](size_t, void*);  // placement array new
 
 protected:
-  //////////////////////////////////////////
-  // implemented by template specializations
   State mqttSetup() override {
     return State::DISCONNECTED;
   };
@@ -612,10 +610,9 @@ protected:
   State mqttState() override {
     return State::DISCONNECTED;
   };
-  virtual bool mqttSubscribe(const String& topic, uint8_t qos) {
+  bool mqttSubscribe(const String& topic, uint8_t qos) {
     return false;
   };
-  //////////////////////////////////////////
 
 public:
   template<typename... Args>
@@ -625,10 +622,7 @@ public:
   MQTTClientImpl(C& client, const char* clientName, const char* host, int port = 1883, const char* user = nullptr, const char* password = nullptr, bool clean = true, MQTTConfig config = DEFAULT_CONFIG)
     : T(client), MQTTClient(clientName, host, port, user, password, clean, config) {};
 
-  //////////////////////////////////////////
-  // implemented by template specializations
   bool mqttPublish(const String& topic, const char* payload, bool retained = false, uint8_t qos = 0, bool dup = false) {
     return false;
   };
-  //////////////////////////////////////////
 };

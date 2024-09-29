@@ -80,7 +80,7 @@ namespace __internal {
   #endif
   ) {
     if (object == nullptr) {
-      #ifdef __AVR__
+      #ifdef SIMPLEMQTT_OPTIMIZE_MEMORY
         // do not store type names (conserve RAM)
         SIMPLEMQTT_ERROR(F("Unable to allocate %d bytes!\n"), sizeof(T));
       #else

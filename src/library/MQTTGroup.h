@@ -526,11 +526,6 @@ public:
     return n;
   };
 
-  // Prints information about this topic group to the specified Print object.
-  // Implements the necessary method of the Printable interface.
-  inline size_t printTo(Print& p) const override {
-    return printTo(p, 0);
-  };
 #endif
 };
 
