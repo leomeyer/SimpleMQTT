@@ -19,20 +19,24 @@ protected:
 
   ListNode nodes{ nullptr, nullptr };
   TopicOrder topicOrder = TopicOrder::UNSPECIFIED;
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
   String topicPattern;
   String requestPattern;
   String setPattern;
+#endif
 
   MQTTGroup(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig)
     : MQTTTopic(aParent, aTopic, aConfig) {};
 
   inline String type() const override {
-    return String("+");
+    return String('+');
   };
+
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
 
   String getTopicPattern() override {
     String result;
-    if (_parent != nullptr)
+    if (_parent != nullptr && _parent != this)
       result = _parent->getTopicPattern();
     else
       result = topicPattern;
@@ -41,9 +45,9 @@ protected:
     return result;
   };
 
-  virtual String getRequestPattern() {
+  String getRequestPattern() {
     String result;
-    if (_parent != nullptr)
+    if (_parent != nullptr && _parent != this)
       result = _parent->getRequestPattern();
     else
       result = requestPattern;
@@ -52,13 +56,16 @@ protected:
     return result;
   };
 
-  virtual String applyRequestPattern(MQTTTopic* value) {
+  String applyRequestPattern(MQTTTopic* value) {
     String result = getRequestPattern();
-    result.replace("%s", value->getFullTopic(getTopicOrder()));
+    int patpos = result.indexOf(F("%s"));
+    if (patpos >= 0)
+      result = result.substring(0, patpos) + value->getFullTopic(getTopicOrder()) + result.substring(patpos + 2);
+//    result.replace(F("%s"), value->getFullTopic(getTopicOrder()));
     return result;
   };
 
-  virtual String getSetPattern() {
+  String getSetPattern() {
     String result;
     if (_parent != nullptr)
       result = _parent->getSetPattern();
@@ -69,31 +76,37 @@ protected:
     return result;
   };
 
-  virtual String applySetPattern(MQTTTopic* value) {
+  String applySetPattern(MQTTTopic* value) {
     String fullTopic = value->getFullTopic(getTopicOrder());
     // top-level topics are "set" by listening to their topic directly
-    if (fullTopic.startsWith("/"))
+    if (fullTopic.charAt(0) == '/')
       return fullTopic;
-    String result = "%s/set";
-    result.replace("%s", fullTopic);
+    String result(getSetPattern());
+    int patpos = result.indexOf(F("%s"));
+    if (patpos >= 0)
+      result = result.substring(0, patpos) + fullTopic + result.substring(patpos + 2);
+    else
+      result = fullTopic;
     return result;
   };
 
+#endif // #ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
+
   bool addNode(MQTTTopic* value) {
     if (value == __internal::INVALID_PTR) {
-      SIMPLEMQTT_ERROR(PSTR("Attempting to add an invalid element, ignoring\n"));
+      SIMPLEMQTT_ERROR(F("Attempting to add an invalid element, ignoring\n"));
       return true;
     }
     if (this == __internal::INVALID_PTR) {
-      SIMPLEMQTT_ERROR(PSTR("MQTTGroup is invalid, cannot add element\n"));
+      SIMPLEMQTT_ERROR(F("MQTTGroup is invalid, cannot add element\n"));
       return false;
     }
     if (!isTopicValid()) {
-      SIMPLEMQTT_ERROR(PSTR("MQTTGroup topic '%s' is invalid, cannot add element\n"), topic.get());
+      SIMPLEMQTT_ERROR(F("MQTTGroup topic '%s' is invalid, cannot add element\n"), topic.get());
       return false;
     }
     if (!value->isTopicValid()) {
-      SIMPLEMQTT_ERROR(PSTR("Element topic '%s' is invalid, cannot add\n"), value->topic.get());
+      SIMPLEMQTT_ERROR(F("Element topic '%s' is invalid, cannot add\n"), value->topic.get());
       return false;
     }
 
@@ -101,7 +114,7 @@ protected:
     while (node->next != nullptr) {
       // cannot add if an existing node already has the same topic
       if (node->data->getFullTopic() == value->getFullTopic()) {
-        SIMPLEMQTT_ERROR(PSTR("A topic '%s' has already been added\n"), value->getFullTopic().c_str());
+        SIMPLEMQTT_ERROR(F("A topic '%s' has already been added\n"), value->getFullTopic().c_str());
         return false;
       }
       node = node->next;
@@ -109,7 +122,7 @@ protected:
     node->data = value;
     node->next = SIMPLEMQTT_ALLOCATE(ListNode);
     if (node->next == __internal::INVALID_PTR) {
-      SIMPLEMQTT_ERROR(PSTR("Not enough memory for internal list, element '%s'\n"), value->getFullTopic().c_str());
+      SIMPLEMQTT_ERROR(F("Not enough memory for internal list, element '%s'\n"), value->getFullTopic().c_str());
       node->data = nullptr;
       node->next = nullptr;
       return false;
@@ -140,7 +153,7 @@ protected:
     while (node->next != nullptr) {
       MQTTTopic* value = node->data;
       if (value->needsPublish()) {
-        //        SIMPLEMQTT_DEBUG(PSTR("Needs publish: '%s', config: %s\n"), value->getFullTopic().c_str(), value->getConfigStr());
+        //        SIMPLEMQTT_DEBUG(F("Needs publish: '%s', config: %s\n"), value->getFullTopic().c_str(), value->getConfigStr());
         return true;
       }
       node = node->next;
@@ -169,9 +182,9 @@ protected:
     return true;
   };
 
-  virtual void addSubscriptions(MQTTClient* client) override;
+  void addSubscriptions(MQTTClient* client) override;
 
-  virtual bool processPayload(MQTTClient* client, const char* topic, const char* payload) override;
+  bool processPayload(MQTTClient* client, const char* topic, const char* payload) override;
 
 public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTGroup)
@@ -197,26 +210,30 @@ public:
     return *this;
   };
 
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
+
   // Sets the general topic pattern used by this group.
   // The string %s in the pattern is replaced by a topic's full path in the topic hierarchy.
-  virtual MQTTGroup& setTopicPattern(const String& pattern) {
+  MQTTGroup& setTopicPattern(const String& pattern) {
     topicPattern = pattern;
     return *this;
   };
 
   // Sets the request topic pattern used by this group.
   // The string %s in the pattern is replaced by a topic's full path in the topic hierarchy.
-  virtual MQTTGroup& setRequestPattern(const String& pattern) {
+  MQTTGroup& setRequestPattern(const String& pattern) {
     requestPattern = pattern;
     return *this;
   };
 
   // Sets the set topic pattern used by this group.
   // The string %s in the pattern is replaced by a topic's full path in the topic hierarchy.
-  virtual MQTTGroup& setSetPattern(const String& pattern) {
+  MQTTGroup& setSetPattern(const String& pattern) {
     setPattern = pattern;
     return *this;
   };
+
+#endif  // #ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
 
   // Causes all subtopics of this group to be published to the broker
   // on the next call of the handle() function.
@@ -242,9 +259,10 @@ public:
   } \
   typename argument_type<void(className)>::type* result = SIMPLEMQTT_ALLOCATE(typename argument_type<void(className)>::type, __VA_ARGS__); \
   if (result != __internal::INVALID_PTR && addOrFree(result)) { \
-    SIMPLEMQTT_DEBUG(PSTR("Added object of class %s for type %s, topic '%s'\n"), #className, #typeName, topic.get()); \
+    SIMPLEMQTT_DEBUG(F("Added object of class %s for type %s, topic '%s'\n"), #className, #typeName, topic.get()); \
     return *result; \
   } \
+  SIMPLEMQTT_ERROR(F("Error adding object of class %s for type %s, topic '%s'\n"), #className, #typeName, topic.get()); \
   topic.release(); \
   return ((typename argument_type<void(typeName)>::type) * ((typename argument_type<void(className)>::type*)__internal::INVALID_PTR))
 
@@ -405,7 +423,7 @@ public:
       return *this;
     String part{ key };
     String rest;
-    int i = key.indexOf("/", 1);
+    int i = key.indexOf('/', 1);
     if (i > 0) {
       part = part.substring(0, i);
       rest = key.substring(i + 1);
@@ -479,19 +497,20 @@ public:
     return nullptr;
   };
 
+#ifdef SIMPLEMQTT_DEBUG_SERIAL
   // Prints information about this topic group to the specified Print object.
   size_t printTo(Print& p, size_t indent) const override {
     size_t n = 0;
     for (size_t i = 0; i < indent; i++)
-      n += p.print(" ");
+      n += p.print(' ');
     if (name()[0] == '\0') {
       p.print(F("INVALID"));
     } else {
       n += p.print(type().c_str());
       n += p.print(name());
-      n += p.print(" (");
+      n += p.print(F(" ("));
       n += p.print(getConfigStr());
-      n += p.println("): {");
+      n += p.println(F("): {"));
       const ListNode* node = &nodes;
       while (node->next != nullptr) {
         n += node->data->printTo(p, indent + 2);
@@ -499,10 +518,10 @@ public:
       }
       n += printExtras(p, indent + 2);  // group extras should include newline
       for (size_t i = 0; i < indent; i++)
-        n += p.print(" ");
-      n += p.print("} (");
+        n += p.print(' ');
+      n += p.print(F("} ("));
       n += p.print(name());
-      n += p.println(")");
+      n += p.println(')');
     }
     return n;
   };
@@ -512,6 +531,7 @@ public:
   inline size_t printTo(Print& p) const override {
     return printTo(p, 0);
   };
+#endif
 };
 
 // add function template specializations

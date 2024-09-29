@@ -85,19 +85,19 @@ namespace __internal {
   String formatValue(T value, IntegralFormat format) { 
     return String(value, (uint8_t)format); // == IntegralFormat::DEFAULT_INTFORMAT ? IntegralFormat::DECIMAL : format));
   }
-/*
+
   template <>
   String formatValue(int64_t value, IntegralFormat) {
     // String does not support 64 bit value formatting (crash)
-    return String(value);
+    return String();
   }
 
   template <>
   String formatValue(uint64_t value, IntegralFormat) { 
     // String does not support 64 bit value formatting (crash)
-    return String(value);
+    return String();
   }
-*/
+
   template <typename T>
   String formatValue(T value, const char* format) { 
     const char* fmt = format;

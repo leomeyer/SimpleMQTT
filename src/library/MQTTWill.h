@@ -15,17 +15,19 @@ protected:
 
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTWill)
 
+#ifdef SIMPLEMQTT_DEBUG_SERIAL
   size_t printExtras(Print& p, size_t indent) const override { 
     if (message == nullptr)
       return 0;
     size_t n = 0;
     for (size_t i = 0; i < indent; i++)
-      n += p.print(" ");
+      n += p.print(' ');
     n += p.print(F(" [will msg: '"));
     n += p.print(message);
     n += p.print(F("']"));
     return n;
   };
+#endif
 
 public:
   MQTTWill(__internal::_Topic aTopic, const char* aMessage, uint8_t qos = 0, bool retained = true)

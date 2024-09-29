@@ -75,25 +75,26 @@ protected:
     inline ElementProxy<E>& operator=(char* payload) { setFromPayload(payload); return *this; };
     template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
     inline ElementProxy<E>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
+#if __has_include(<string>)
     template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
     inline ElementProxy<E>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+#endif
     template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
     inline ElementProxy<E>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
   };
 
   MQTTArray(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, T arr, size_t elementCount)
     : MQTTTopic(aParent, aTopic, aConfig),
-      array(arr), length(elementCount), helper(aParent, aTopic, aConfig, arr) {
-    helper.setSettable(true);
+      array(arr), length(elementCount), helper(aParent, aTopic, aConfig | SETTABLE_SETMASK, arr) {
   };
 
   inline String type() const override {
-    String result("");
+    String result;
     if constexpr (std::is_const_v<E>)
-      result += "!";
-    result += "[";
+      result += '!';
+    result += '[';
     result += length;
-    result += "]";
+    result += ']';
     return result; 
   };
 
@@ -211,7 +212,7 @@ public:
     return ResultCode::OK;
   };
 
-  virtual MQTTArray<T>& setPayloadHandler(PayloadHandler handler) {
+  MQTTArray<T>& setPayloadHandler(PayloadHandler handler) {
     SIMPLEMQTT_CHECK_VALID(*this);
     payloadHandler = handler;
     return *this;

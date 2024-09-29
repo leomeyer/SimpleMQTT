@@ -21,25 +21,27 @@ void MQTTTopic::publish(bool) {
   config &= PUBLISH_CLEARMASK;
 }
 
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
 String MQTTTopic::getTopicPattern() {
   if (_parent != nullptr)
     return _parent->getTopicPattern();
   else
     return DEFAULT_TOPIC_PATTERN;
 }
+#endif
 
 String MQTTTopic::getFullTopic(TopicOrder order) {
   SIMPLEMQTT_CHECK_VALID(String());
-  const char* myName = name();
-  if (myName[0] == '/' || _parent == nullptr)
-    return String(myName);
+  String myName(name());  // copy from common memory area
+  if (myName.charAt(0) == '/' || _parent == nullptr)
+    return myName;
   else if (_parent != nullptr) {
     switch (order) {
-      case TopicOrder::BOTTOM_UP: return String(myName) + "/" + _parent->getFullTopic(order);
-      default: return _parent->getFullTopic(order) + "/" + myName;
+      case TopicOrder::BOTTOM_UP: return myName + '/' + _parent->getFullTopic(order);
+      default: return _parent->getFullTopic(order) + '/' + myName;
     }
   } else
-    return String(myName);
+    return myName;
 }
 
 String MQTTTopic::getFullTopic() {
@@ -51,30 +53,38 @@ String MQTTTopic::getFullTopic() {
 
 String MQTTTopic::getRequestTopic() {
   SIMPLEMQTT_CHECK_VALID(String());
+#ifdef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
+  return getFullTopic() + F("/get");
+#else
   return parent().applyRequestPattern(this);
+#endif
 }
 
 String MQTTTopic::getSetTopic() {
   SIMPLEMQTT_CHECK_VALID(String());
+#ifdef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
+  return getFullTopic() + F("/set");
+#else
   return parent().applySetPattern(this);
+#endif
 }
 
 void MQTTTopic::addSubscriptions(MQTTClient* client) {
   SIMPLEMQTT_CHECK_VALID();
-  SIMPLEMQTT_DEBUG(PSTR("Preparing subscriptions for '%s', config: %s\n"), getFullTopic().c_str(), getConfigStr().c_str());
+  SIMPLEMQTT_DEBUG(F("Preparing subscriptions for '%s', config: %s\n"), getFullTopic().c_str(), getConfigStr().c_str());
   if (isTopicValid()) {
     if (isRequestable()) {
       String request_topic = client->getFinalTopic(getRequestTopic());
-      SIMPLEMQTT_DEBUG(PSTR("  Subscribing request with topic '%s'\n"), request_topic.c_str());
+      SIMPLEMQTT_DEBUG(F("  Subscribing request with topic '%s'\n"), request_topic.c_str());
       client->mqttSubscribe(request_topic, getQoS());
     }
     if (isSettable()) {
       String set_topic = client->getFinalTopic(getSetTopic());
-      SIMPLEMQTT_DEBUG(PSTR("  Subscribing set with topic '%s'\n"), set_topic.c_str());
+      SIMPLEMQTT_DEBUG(F("  Subscribing set with topic '%s'\n"), set_topic.c_str());
       client->mqttSubscribe(set_topic, getQoS());
     }
   } else
-    SIMPLEMQTT_DEBUG(PSTR("Invalid topic, skipping: '%s'\n"), getFullTopic().c_str());
+    SIMPLEMQTT_DEBUG(F("Invalid topic, skipping: '%s'\n"), getFullTopic().c_str());
 }
 
 bool MQTTTopic::processPayload(MQTTClient* client, const char* topic, const char* payload) {
@@ -82,7 +92,7 @@ bool MQTTTopic::processPayload(MQTTClient* client, const char* topic, const char
   if (isRequestable()) {
     // request topic received?
     if (client->getFinalTopic(getRequestTopic()) == topic) {
-      SIMPLEMQTT_DEBUG(PSTR("Request for topic '%s' with payload '%s'\n"), topic, payload);
+      SIMPLEMQTT_DEBUG(F("Request for topic '%s' with payload '%s'\n"), topic, payload);
       switch (ResultCode code = requestReceived(payload)) {
         case ResultCode::OK:
           client->setStatus((int8_t)code, String(topic));
@@ -90,7 +100,7 @@ bool MQTTTopic::processPayload(MQTTClient* client, const char* topic, const char
         default:
           client->setStatus((int8_t)code, String(topic), String(payload));
       }
-      SIMPLEMQTT_DEBUG(PSTR("After request:%s"), " ");
+      SIMPLEMQTT_DEBUG(F("After request:%s"), " ");
       #ifdef SIMPLEMQTT_DEBUG_SERIAL
       printTo(SIMPLEMQTT_DEBUG_SERIAL);
       #endif
@@ -100,7 +110,7 @@ bool MQTTTopic::processPayload(MQTTClient* client, const char* topic, const char
   if (isSettable()) {
     // set topic received?
     if (client->getFinalTopic(getSetTopic()) == topic) {
-      SIMPLEMQTT_DEBUG(PSTR("Set for topic '%s' with payload '%s'\n"), topic, payload);
+      SIMPLEMQTT_DEBUG(F("Set for topic '%s' with payload '%s'\n"), topic, payload);
       switch (ResultCode code = setReceived(payload)) {
         case ResultCode::OK:
           client->setStatus((int8_t)code, String(topic));
@@ -108,7 +118,7 @@ bool MQTTTopic::processPayload(MQTTClient* client, const char* topic, const char
         default:
           client->setStatus((int8_t)code, String(topic), String(payload));
       }
-      SIMPLEMQTT_DEBUG(PSTR("After set:%s"), " ");
+      SIMPLEMQTT_DEBUG(F("After set:%s"), " ");
       #ifdef SIMPLEMQTT_DEBUG_SERIAL
       printTo(SIMPLEMQTT_DEBUG_SERIAL);
       #endif

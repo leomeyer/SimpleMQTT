@@ -31,7 +31,7 @@ protected:
     }
   };
 
-  virtual bool _set(JsonDocument& newDoc) {
+  bool _set(JsonDocument& newDoc) {
     SIMPLEMQTT_CHECK_VALID(false);
     bool changed = jdoc != newDoc;
     jdoc = newDoc;
@@ -49,7 +49,7 @@ protected:
 public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTJsonTopic)
 
-  virtual JsonDocument& doc() {
+  JsonDocument& doc() {
     return jdoc;
   };
 

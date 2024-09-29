@@ -12,10 +12,10 @@ namespace __ArduinoMQTT {
   // Unfortunately this is necessary because this library does not accept a lambda as callback
   // which means that only one instance of this client can be used at a time. 
 
-  MQTTClientImpl<MqttClient>* client = nullptr;
+  MQTTClientImpl<MqttClient, Client>* client = nullptr;
 
   void arduinoMqttClientOnMessage(int length) {
-    auto thisClient = static_cast<MQTTClientImpl<MqttClient>*>(client);
+    auto thisClient = static_cast<MQTTClientImpl<MqttClient, Client>*>(client);
     String topic = client->messageTopic();
     String payload = "";
     while (client->available())
@@ -26,7 +26,7 @@ namespace __ArduinoMQTT {
 }   // namespace __ArduinoMQTT
 
 template <>
-MQTTClient::State MQTTClientImpl<MqttClient>::mqttSetup() {
+MQTTClient::State MQTTClientImpl<MqttClient, Client>::mqttSetup() {
   // MqttClient setup
   MqttClient::setId(mqttClientName);
   MqttClient::setUsernamePassword(mqttUser, mqttPassword);
@@ -37,31 +37,17 @@ MQTTClient::State MQTTClientImpl<MqttClient>::mqttSetup() {
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   // increase payload buffer size to allow for larger Json messages
   MqttClient::setTxPayloadSize(SIMPLEMQTT_JSON_BUFFERSIZE);
+#else
+  MqttClient::setTxPayloadSize(SIMPLEMQTT_BUFFERSIZE);
 #endif
 
   return State::DISCONNECTED;
 };
 
 template <>
-bool MQTTClientImpl<MqttClient>::_mqttConnect() {
-  if (!connect(mqttHost, mqttPort)) {
-    // print out the error message:
-    Serial.print("MQTT connection failed. Error no: ");
-    Serial.println(connectError());
-    return false;
-  }
-
-  if (mqttWill != nullptr) {
-    beginWill(mqttWill->name(), mqttWill->getPayload().length(), mqttWill->isRetained(), mqttWill->getQoS());
-    print(mqttWill->getPayload());
-    endWill();
-  }
-
-  return true;
-};
-
-template <>
-MQTTClient::State MQTTClientImpl<MqttClient>::mqttState() {
+MQTTClient::State MQTTClientImpl<MqttClient, Client>::mqttState() {
+  if (connected())
+    return State::CONNECTED;
   switch (MqttClient::connectError()) {
     case MQTT_CONNECTION_REFUSED: return State::ERROR;
     case MQTT_CONNECTION_TIMEOUT: return State::CONNECTION_TIMEOUT;
@@ -76,19 +62,31 @@ MQTTClient::State MQTTClientImpl<MqttClient>::mqttState() {
 };
 
 template <>
-MQTTClient::State MQTTClientImpl<MqttClient>::mqttLoop() {
+MQTTClient::State MQTTClientImpl<MqttClient, Client>::_mqttConnect() {
+  if (!connect(mqttHost, mqttPort)) {
+    // print out the error message
+    SIMPLEMQTT_ERROR(F("MQTT connection failed. Error no: %d\n"), connectError());
+    return mqttState();
+  }
+
+  if (mqttWill != nullptr) {
+    beginWill(mqttWill->name(), mqttWill->getPayload().length(), mqttWill->isRetained(), mqttWill->getQoS());
+    print(mqttWill->getPayload());
+    endWill();
+  }
+
+  return State::CONNECTING;
+};
+
+template <>
+MQTTClient::State MQTTClientImpl<MqttClient, Client>::mqttLoop() {
   // MqttClient loop
   poll();
   return mqttState();
 };
 
 template <>
-bool MQTTClientImpl<MqttClient>::mqttConnected() {
-  return MqttClient::connected();
-};
-
-template <>
-bool MQTTClientImpl<MqttClient>::mqttPublish(const String& topic, const char* payload, bool retained, uint8_t qos, bool dup) {
+bool MQTTClientImpl<MqttClient, Client>::mqttPublish(const String& topic, const char* payload, bool retained, uint8_t qos, bool dup) {
   if (!MqttClient::connected())
     return false;
 
@@ -102,7 +100,7 @@ bool MQTTClientImpl<MqttClient>::mqttPublish(const String& topic, const char* pa
 };
 
 template <>
-bool MQTTClientImpl<MqttClient>::mqttSubscribe(const String& topic, uint8_t qos) {
+bool MQTTClientImpl<MqttClient, Client>::mqttSubscribe(const String& topic, uint8_t qos) {
   return MqttClient::subscribe(topic, qos);
 };
 

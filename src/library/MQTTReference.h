@@ -27,8 +27,8 @@ protected:
 
   inline String type() const override { 
     if constexpr (std::is_const_v<T>)
-      return String("!&"); 
-    return String("&"); 
+      return String(F("!&")); 
+    return String('&'); 
   };
 
   void _setValue(T newValue) override {
@@ -108,8 +108,10 @@ public:
   inline MQTTReference<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTReference<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
+#if __has_include(<string>)
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
   inline MQTTReference<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+#endif
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
   inline MQTTReference<T>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
 };

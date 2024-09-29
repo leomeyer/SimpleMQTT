@@ -14,6 +14,14 @@
 #include <string>
 #endif
 
+#ifndef SIMPLEMQTT_BUFFERSIZE
+  #ifdef __AVR__
+    #define SIMPLEMQTT_BUFFERSIZE 64
+  #else
+    #define SIMPLEMQTT_BUFFERSIZE 256
+  #endif
+#endif
+
 #if SIMPLEMQTT_JSON_BUFFERSIZE > 0
   #include <ArduinoJson.h>
 #endif
@@ -35,12 +43,17 @@
     #pragma message "----------------> SimpleMQTTClient is using this MQTT library: PubSubClient"
   #endif
 #else
-  #error "The MQTT client library could not be determined. Before including this library please include one of [<ArduinoMqttClient.h>, <PubSubClient.h>]"
+  #ifdef SIMPLEMQTT_DEBUG_SERIAL
+    #pragma message "A MQTT client library could not be determined. To directly connect to a MQTT broker please include one of [<ArduinoMqttClient.h>, <PubSubClient.h>]."
+    #pragma message "The SimpleMQTTProxy is still available."
+  #endif
 #endif
 
 #ifndef SIMPLEMQTT_MAX_STATIC_RAM
   #if defined(ESP8266) || defined(ESP32)
     #define SIMPLEMQTT_MAX_STATIC_RAM 4096
+  #else
+    #define SIMPLEMQTT_MAX_STATIC_RAM 256
   #endif
 #endif
 
@@ -67,6 +80,11 @@
   #error Static memory too large!
 #endif
 
+// Serial stream default baud rate for proxy communication.
+#ifndef SIMPLEMQTT_DEFAULT_PROXY_BAUDRATE
+  #define SIMPLEMQTT_DEFAULT_PROXY_BAUDRATE 57600
+#endif
+
 #ifdef SIMPLEMQTT_DEBUG_SERIAL
   #ifndef SIMPLEMQTT_ERROR_SERIAL
     #define SIMPLEMQTT_ERROR_SERIAL SIMPLEMQTT_DEBUG_SERIAL
@@ -74,30 +92,126 @@
 #endif
 
 #ifndef SIMPLEMQTT_DEBUG_PREFIX
-  #define SIMPLEMQTT_DEBUG_PREFIX  PSTR("[MQTT] DBG ")
+  #ifdef __AVR__
+    #define SIMPLEMQTT_DEBUG_PREFIX  F("[MQTT] DBG ")
+  #else
+    #define SIMPLEMQTT_DEBUG_PREFIX  PSTR("[MQTT] DBG ")
+  #endif
 #endif
 
 #ifndef SIMPLEMQTT_ERROR_PREFIX
-  #define SIMPLEMQTT_ERROR_PREFIX  PSTR("[MQTT] ERR ")
+  #ifdef __AVR__
+    #define SIMPLEMQTT_ERROR_PREFIX  F("[MQTT] ERR ")
+  #else
+    #define SIMPLEMQTT_ERROR_PREFIX  PSTR("[MQTT] ERR ")
+  #endif
 #endif
 
 #ifndef SIMPLEMQTT_TIMESTAMP
   #define SIMPLEMQTT_TIMESTAMP     PSTR("%d ms: "), millis()
 #endif
 
+#ifdef __AVR__
+  // primitive replacement for printf_P
+  void _debugPrintf_P(Print& out, const char* fmt, va_list args) {
+    PGM_P p = reinterpret_cast<PGM_P>(fmt);
+    uint8_t c = pgm_read_byte(p++);
+    while (c != 0) {
+        if (c == '%') {
+          char f = pgm_read_byte(p++);
+          if (f == '\0') {
+            out.print((char)c);
+            break;
+          }
+          else
+          if (f == 'd') {
+              int i = va_arg(args, int);
+              out.print(i);
+          } else 
+          if (f == 's') {
+              char* s = va_arg(args, char*);
+              out.print(s);
+          } else {
+            out.print(f);
+            va_arg(args, int);
+          }
+        } else
+          out.print((char)c);
+      c = pgm_read_byte(p++);
+    }
+  }
+
+  void debugPrintf(Print& out, const __FlashStringHelper* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    _debugPrintf_P(out, (const char*)fmt, args);
+    va_end(args);
+  }
+
+  void debugPrintf(Print& out, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    uint8_t c = fmt[0];
+    size_t pos = 0;
+    while (c != 0) {
+        if (c == '%') {
+          char f = fmt[++pos];
+          if (f == '\0') {
+            out.print((char)c);
+            break;
+          }
+          else
+          if (f == 'd') {
+              int i = va_arg(args, int);
+              out.print(i);
+          } else 
+          if (f == 's') {
+              char* s = va_arg(args, char*);
+              out.print(s);
+          } else {
+            out.print(f);
+            va_arg(args, int);
+          }
+        } else
+          out.print((char)c);
+      c = fmt[++pos];
+    }
+    va_end(args);
+  }
+
+  void debugPrintf(Print& out, int i) {
+    out.print(i);
+  }
+#endif
+
 #ifdef SIMPLEMQTT_DEBUG_SERIAL
-  #define SIMPLEMQTT_DEBUG(...)    { \
-    SIMPLEMQTT_DEBUG_SERIAL.printf_P(SIMPLEMQTT_DEBUG_PREFIX); \
-    SIMPLEMQTT_DEBUG_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); \
-    SIMPLEMQTT_DEBUG_SERIAL.printf_P(__VA_ARGS__); }
+  #ifdef __AVR__
+    #define SIMPLEMQTT_DEBUG(fmt, ...) { \
+      SIMPLEMQTT_DEBUG_SERIAL.print(SIMPLEMQTT_DEBUG_PREFIX); \
+      debugPrintf(SIMPLEMQTT_DEBUG_SERIAL, fmt, ##__VA_ARGS__); }
+  #else
+    #define SIMPLEMQTT_DEBUG(...)    { \
+      SIMPLEMQTT_DEBUG_SERIAL.printf_P((const char*)SIMPLEMQTT_DEBUG_PREFIX); \
+      SIMPLEMQTT_DEBUG_SERIAL.printf_P((const char*)SIMPLEMQTT_TIMESTAMP); \
+      SIMPLEMQTT_DEBUG_SERIAL.printf_P((const char*)__VA_ARGS__); }
+  #endif
+
+  #define SIMPLEMQTT_TOPICS_PRINTABLE   true
 #else
   #define SIMPLEMQTT_DEBUG(...)    {}
 #endif
+
 #ifdef SIMPLEMQTT_ERROR_SERIAL
-  #define SIMPLEMQTT_ERROR(...)    { \
-    SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_ERROR_PREFIX); \
-    SIMPLEMQTT_ERROR_SERIAL.printf_P(SIMPLEMQTT_TIMESTAMP); \
-    SIMPLEMQTT_ERROR_SERIAL.printf_P(__VA_ARGS__); }
+  #ifdef __AVR__
+    #define SIMPLEMQTT_ERROR(fmt, ...) { \
+      SIMPLEMQTT_ERROR_SERIAL.print(SIMPLEMQTT_ERROR_PREFIX); \
+      debugPrintf(SIMPLEMQTT_ERROR_SERIAL, fmt, ##__VA_ARGS__); }
+  #else
+    #define SIMPLEMQTT_ERROR(...)    { \
+      SIMPLEMQTT_ERROR_SERIAL.printf_P((const char*)SIMPLEMQTT_ERROR_PREFIX); \
+      SIMPLEMQTT_ERROR_SERIAL.printf_P((const char*)SIMPLEMQTT_TIMESTAMP); \
+      SIMPLEMQTT_ERROR_SERIAL.printf_P((const char*)__VA_ARGS__); }
+    #endif
 #else
   #define SIMPLEMQTT_ERROR(...)    {}
 #endif
@@ -106,7 +220,18 @@
   #define SIMPLEMQTT_DEBUG_MEMORY false
 #endif
 
-#define SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD   SIMPLEMQTT_DEBUG(PSTR("%s.setFromPayload: %s\n"), MQTTTopic::getFullTopic().c_str(), payload);
+// #define SIMPLEMQTT_OPTIMIZE_MEMORY  true
+
+#ifdef SIMPLEMQTT_OPTIMIZE_MEMORY
+  #ifndef SIMPLEMQTT_OPTIMIZE_NO_SETTERS
+    #define SIMPLEMQTT_OPTIMIZE_NO_SETTERS true
+  #endif
+  #ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
+    #define SIMPLEMQTT_OPTIMIZE_NO_PATTERNS true
+  #endif
+#endif
+
+#define SIMPLEMQTT_DEBUG_SET_FROM_PAYLOAD   SIMPLEMQTT_DEBUG(F("%s.setFromPayload: %s\n"), MQTTTopic::getFullTopic().c_str(), payload);
 
 namespace SimpleMQTT {
 
@@ -158,9 +283,11 @@ namespace SimpleMQTT {
 
   static MQTTConfig DEFAULT_CONFIG = MQTTConfig::AUTO_PUBLISH + MQTTConfig::SETTABLE + MQTTConfig::REQUESTABLE;
   static TopicOrder DEFAULT_TOPIC_ORDER = TopicOrder::TOP_DOWN;
-  static String DEFAULT_TOPIC_PATTERN("%s");
-  static String DEFAULT_REQUEST_PATTERN("%s/get");
-  static String DEFAULT_SET_PATTERN("%s/set");
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
+  static String DEFAULT_TOPIC_PATTERN;
+  static String DEFAULT_REQUEST_PATTERN;
+  static String DEFAULT_SET_PATTERN;
+#endif
 
   static bool isTopicValid(const char* topic) {
       if (topic == nullptr)
@@ -219,19 +346,21 @@ namespace SimpleMQTT {
 
 #if SIMPLEMQTT_CLIENT_LIBRARY == ArduinoMqttClientLibrary
   #include "ArduinoMqttClientImpl.h"
-  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<MqttClient>
+  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<MqttClient, Client>
 #elif SIMPLEMQTT_CLIENT_LIBRARY == PubSubClientLibrary
   #include "PubSubClientImpl.h"
-  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<PubSubClient>
+  #define SIMPLEMQTT_IMPL_CLASS  MQTTClientImpl<PubSubClient, Client>
 #else
-  #error "MQTT_CLIENT_LIBRARY not defined or not supported"
+  // #error "MQTT_CLIENT_LIBRARY not defined or not supported"
+  #include "StreamClientImpl.h"
+  #define SIMPLEMQTT_IMPL_CLASS  MQTTStreamClientImpl
 #endif
 
 #ifdef SIMPLEMQTT_DEBUG_SERIAL
   #define _SM_VALUE_TO_STRING(x) #x
   #define _SM_VALUE(x) _SM_VALUE_TO_STRING(x)
   #define _SM_PRINT_MACRO_AT_COMPILE_TIME(text, var)  #text _SM_VALUE(var)
-  #pragma message _SM_PRINT_MACRO_AT_COMPILE_TIME("----------------> The actual SimpleMQTTClient implementation is: ", SIMPLEMQTT_IMPL_CLASS)
+  #pragma message _SM_PRINT_MACRO_AT_COMPILE_TIME("----------------> The actual SimpleMQTTClient implementation is: ", _SM_VALUE_TO_STRING(SIMPLEMQTT_IMPL_CLASS))
 #endif
 
   #include "Impl.h"

@@ -23,13 +23,13 @@ namespace __internal {
     T* allocate(T object) {
       size_t size = SIMPLEMQTT_MEMBLOCK(sizeof(T));
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("Allocating %d bytes for object at address %d...\n"), size, memPointer);
+        SIMPLEMQTT_DEBUG(F("Allocating %d bytes for object at address %d...\n"), size, memPointer);
       if (memPointer + size > SIMPLEMQTT_STATIC_MEMORY_SIZE)
         return nullptr;
       memcpy(&staticMemory[memPointer], &object, size);
       memPointer += size;
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("Success, new address is %d\n"), memPointer);
+        SIMPLEMQTT_DEBUG(F("Success, new address is %d\n"), memPointer);
       return (T*)(void*)(&staticMemory[memPointer - size]);
     }
 
@@ -39,12 +39,12 @@ namespace __internal {
         return nullptr;
       size_t size = SIMPLEMQTT_MEMBLOCK(length);
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("Allocating %d bytes at address %d...\n"), size, memPointer);
+        SIMPLEMQTT_DEBUG(F("Allocating %d bytes at address %d...\n"), size, memPointer);
       if (memPointer + size > SIMPLEMQTT_STATIC_MEMORY_SIZE)
         return nullptr;
       memPointer += size;
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("Success, new address is %d\n"), memPointer);
+        SIMPLEMQTT_DEBUG(F("Success, new address is %d\n"), memPointer);
       return (T*)(void*)(&staticMemory[memPointer - size]);
     }
 
@@ -52,10 +52,10 @@ namespace __internal {
     void deallocate(T*) {
       size_t size = SIMPLEMQTT_MEMBLOCK(sizeof(T));
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("Deallocating %d bytes from address %d...\n"), size, memPointer);
+        SIMPLEMQTT_DEBUG(F("Deallocating %d bytes from address %d...\n"), size, memPointer);
       memPointer -= size;
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("New address is %d\n"), memPointer);
+        SIMPLEMQTT_DEBUG(F("New address is %d\n"), memPointer);
     }
 
     void deallocate(size_t length) {
@@ -63,10 +63,10 @@ namespace __internal {
         return;
       size_t size = SIMPLEMQTT_MEMBLOCK(length);
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("Deallocating %d bytes from address %d...\n"), size, memPointer);
+        SIMPLEMQTT_DEBUG(F("Deallocating %d bytes from address %d...\n"), size, memPointer);
       memPointer -= size;
       if (SIMPLEMQTT_DEBUG_MEMORY)
-        SIMPLEMQTT_DEBUG(PSTR("New address is %d\n"), memPointer);
+        SIMPLEMQTT_DEBUG(F("New address is %d\n"), memPointer);
     }
   #endif
   // << static memory management
@@ -80,7 +80,12 @@ namespace __internal {
   #endif
   ) {
     if (object == nullptr) {
-      SIMPLEMQTT_ERROR(PSTR("Unable to allocate %d bytes for object of type %s!\n"), sizeof(T), type);
+      #ifdef __AVR__
+        // do not store type names (conserve RAM)
+        SIMPLEMQTT_ERROR(F("Unable to allocate %d bytes!\n"), sizeof(T));
+      #else
+        SIMPLEMQTT_ERROR(F("Unable to allocate %d bytes for object of type %s!\n"), sizeof(T), type);
+      #endif
       return (T*)INVALID_PTR;
     }
     return object;
@@ -94,7 +99,7 @@ namespace __internal {
     #define SIMPLEMQTT_DEALLOCATE(object)                __internal::deallocate(object);
   #else
     #define SIMPLEMQTT_ALLOCATE_MEM(typeName, length)    (typeName*)malloc(length)
-    #define SIMPLEMQTT_ALLOCATE_CLASS(className, ...)    new (std::nothrow) className(__VA_ARGS__)
+    #define SIMPLEMQTT_ALLOCATE_CLASS(className, ...)    new className(__VA_ARGS__)
     #define SIMPLEMQTT_ALLOCATE(className, ...)          __internal::checkAllocation<className>(SIMPLEMQTT_ALLOCATE_CLASS(className, __VA_ARGS__), #className);
     #define SIMPLEMQTT_DEALLOCATE_MEM(object, length)    { free((void*)object); }
     #define SIMPLEMQTT_DEALLOCATE(object)                { free((void*)object); }
@@ -108,8 +113,13 @@ namespace __internal {
   public:
     template<size_t N>
     _Topic(const char (&t)[N], bool progmem = false) : topic(t) {
-      static_assert(N > 1, "Empty topic not allowed!");
+      static_assert(N > 0, "Empty topic not allowed!");
       static_assert(N < SIMPLEMQTT_MAX_TOPIC_LENGTH, "Topic too long!");
+      if (progmem)
+        flags = 1;
+    };
+
+    _Topic(const char* t, bool progmem = false) : topic(t) {
       if (progmem)
         flags = 1;
     };
@@ -127,17 +137,17 @@ namespace __internal {
     _Topic(String t) {
       topic = (const char*)SIMPLEMQTT_ALLOCATE_MEM(char, t.length() + 1);
       if (topic == nullptr) {
-        SIMPLEMQTT_ERROR(PSTR("Unable to allocate memory for String topic '%s'\n"), t.c_str());
+        SIMPLEMQTT_ERROR(F("Unable to allocate memory for String topic '%s'\n"), t.c_str());
         topic = EMPTY;
       } else {
         if (SIMPLEMQTT_DEBUG_MEMORY)
-          SIMPLEMQTT_DEBUG(PSTR("Allocated memory for String topic '%s'\n"), t.c_str());
+          SIMPLEMQTT_DEBUG(F("Allocated memory for String topic '%s'\n"), t.c_str());
         strcpy((char*)topic, t.c_str());
         flags = 8;
       }
     };
 
-    virtual const char* get() const {
+    const char* get() const {
       // from RAM?
       if ((flags & 1) == 0)
         return topic;
@@ -151,7 +161,7 @@ namespace __internal {
       if ((flags & 2) == 0) {
         flags |= 2 /* checked */ | (isTopicValid(get()) ? 4 : 0);
         if ((flags & 4) == 0) {
-          SIMPLEMQTT_ERROR(PSTR("Invalid topic: '%s'\n"), get());
+          SIMPLEMQTT_ERROR(F("Invalid topic: '%s'\n"), get());
         }
       }
       return ((flags & 4) == 4);
@@ -167,7 +177,7 @@ namespace __internal {
 
   template<size_t N>
   static constexpr auto& CHECKTOPIC(const char (&t)[N]) {
-    static_assert(N > 1, "Empty topic not allowed!");
+    static_assert(N > 0, "Empty topic not allowed!");
     static_assert(N < SIMPLEMQTT_MAX_TOPIC_LENGTH, "Topic too long!");
     return t;
   }
@@ -176,7 +186,11 @@ namespace __internal {
 
 #define Topic(t)          __internal::_Topic(__internal::CHECKTOPIC(t))
 #define Topic_F(t)        __internal::_Topic(F(t), __internal::CHECKTOPIC(t) != nullptr)
-#define Topic_P(name, t)  static auto& PROGMEM name##_pstr = __internal::CHECKTOPIC(t);  static __internal::_Topic name(name##_pstr, true);
+#ifdef __AVR__
+  #define Topic_P(name, t)  static const char PROGMEM name##_pstr[] = t;  static __internal::_Topic name(name##_pstr, true);
+#else
+  #define Topic_P(name, t)  static auto& PROGMEM name##_pstr = __internal::CHECKTOPIC(t);  static __internal::_Topic name(name##_pstr, true);
+#endif
 
 #define SIMPLEMQTT_CHECK_VALID(retval) \
   if (this == __internal::INVALID_PTR) return retval;

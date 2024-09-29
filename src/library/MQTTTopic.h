@@ -35,8 +35,8 @@ protected:
     : _parent(aParent), topic(aTopic), config(aConfig) {
       // topics that start with a slash (top level topics) are by default not requestable and not auto-publishing
       if (name()[0] == '/') {
-        setRequestable(false);
-        setAutoPublish(false);
+        config &= REQUESTABLE_CLEARMASK;
+        config &= AUTO_PUBLISH_CLEARMASK;
       }
     };
 
@@ -49,12 +49,12 @@ protected:
 
   String getConfigStr() const {
     String result;
-    result += (isRetained() ? "R" : "-");
-    result += (needsPublish() ? "P" : "-");
-    result += (hasBeenChanged(false) ? "C" : "-");
-    result += (isAutoPublish() ? "A" : "-");
-    result += (isSettable() ? "S" : "-");
-    result += (isRequestable() ? "Q" : "-");
+    result += (isRetained() ? 'R' : '-');
+    result += (needsPublish() ? 'P' : '-');
+    result += (hasBeenChanged(false) ? 'C' : '-');
+    result += (isAutoPublish() ? 'A' : '-');
+    result += (isSettable() ? 'S' : '-');
+    result += (isRequestable() ? 'Q' : '-');
     result += getQoS();
     return result;
   }
@@ -64,9 +64,11 @@ protected:
     return isTopicValid();
   };
 
+  #ifndef SIMPLEMQTT_OPTIMIZE_NO_PATTERNS
   virtual String getTopicPattern();
+  #endif
 
-  virtual ResultCode requestReceived(const char*) {
+  ResultCode requestReceived(const char*) {
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
     republish();
     return ResultCode::OK;
@@ -120,11 +122,13 @@ protected:
     return ResultCode::CANNOT_SET;
   };
 
+#ifdef SIMPLEMQTT_DEBUG_SERIAL
   // Prints extra information about this topic, if applicable.
   // Should not include newline.
   virtual size_t printExtras(Print& /*p*/, size_t /*indent*/) const { 
     return 0;
   };
+#endif
 
 public:
   static MQTTTopic INVALID_TOPIC;
@@ -159,18 +163,16 @@ public:
 	  return name();
   };
 
+// setters can be optimized away to conserve memory
+// config flags must be managed manually
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_SETTERS
+
   // Sets the Quality of Service for this topic. A value between 0 and 2.
   virtual MQTTTopic& setQoS(uint8_t qos) {
     SIMPLEMQTT_CHECK_VALID(*this);
     config &= ~0b11;
     config |= (qos > 2 ? 2 : qos);
     return *this;
-  };
-
-  // Returns the Quality of Service for this topic.
-  virtual uint8_t getQoS() const {
-    SIMPLEMQTT_CHECK_VALID(0);
-    return config & 0b11;
   };
 
   // Sets the Retained flag for this topic.
@@ -182,24 +184,12 @@ public:
     return *this;
   };
 
-  // Returns the value of the Retained flag for this topic.
-  virtual bool isRetained() const {
-    SIMPLEMQTT_CHECK_VALID(false);
-    return ((config >> RETAINED_BIT) & 1) == 1;
-  };
-
   // Sets whether this topic is auto-publishing.
   virtual MQTTTopic& setAutoPublish(bool autoPublish) {
     SIMPLEMQTT_CHECK_VALID(*this);
     config &= AUTO_PUBLISH_CLEARMASK;
     config |= (autoPublish ? AUTO_PUBLISH_SETMASK : 0);
     return *this;
-  };
-
-  // Returns whether this topic is auto-publishing.
-  virtual bool isAutoPublish() const {
-    SIMPLEMQTT_CHECK_VALID(false);
-    return ((config >> AUTO_PUBLISH_BIT) & 1) == 1;
   };
 
   // Sets whether this topic is requestable.
@@ -212,16 +202,6 @@ public:
     return *this;
   };
 
-  // Returns whether this topic is requestable.
-  virtual bool isRequestable() const {
-    SIMPLEMQTT_CHECK_VALID(false);
-    return ((config >> REQUESTABLE_BIT) & 1) == 1;
-  };
-
-  // Returns the request topic for this topic.
-  // Is only used if the topic is requestable.
-  virtual String getRequestTopic();
-
   // Sets whether this topic is settable.
   // Settable topics will generate a subscription to their individual set topic.
   // Only has an effect before the first call of the handle() function.
@@ -231,6 +211,45 @@ public:
     config |= (settable ? SETTABLE_SETMASK : 0);
     return *this;
   };
+
+#else
+
+  // no setters; allow setting the config value directly
+  virtual inline MQTTTopic& setConfig(uint8_t newConfig) {
+    SIMPLEMQTT_CHECK_VALID(*this);
+    config = newConfig;
+    return *this;
+  };
+
+#endif  // SIMPLEMQTT_OPTIMIZE_NO_SETTERS
+
+  // Returns the Quality of Service for this topic.
+  uint8_t getQoS() const {
+    SIMPLEMQTT_CHECK_VALID(0);
+    return config & 0b11;
+  };
+
+  // Returns the value of the Retained flag for this topic.
+  bool isRetained() const {
+    SIMPLEMQTT_CHECK_VALID(false);
+    return ((config >> RETAINED_BIT) & 1) == 1;
+  };
+
+  // Returns whether this topic is auto-publishing.
+  bool isAutoPublish() const {
+    SIMPLEMQTT_CHECK_VALID(false);
+    return ((config >> AUTO_PUBLISH_BIT) & 1) == 1;
+  };
+
+  // Returns whether this topic is requestable.
+  bool isRequestable() const {
+    SIMPLEMQTT_CHECK_VALID(false);
+    return ((config >> REQUESTABLE_BIT) & 1) == 1;
+  };
+
+  // Returns the request topic for this topic.
+  // Is only used if the topic is requestable.
+  virtual String getRequestTopic();
 
   // Returns whether this topic is settable.
   virtual bool isSettable() const {
@@ -249,7 +268,7 @@ public:
 
   // Sets a flag that indicates that this topic should be published to the broker
   // on the next call of the handle() function.
-  virtual void republish() {
+  void republish() {
     SIMPLEMQTT_CHECK_VALID();
     // set flag to re-publish
     config |= PUBLISH_SETMASK;
@@ -265,17 +284,17 @@ public:
 
   // Returns the full name of this topic as it should appear in the topic hierarchy
   // if the given TopicOrder is being used.
-  virtual String getFullTopic(TopicOrder order); // see MQTTImpl.h
+  virtual String getFullTopic(TopicOrder order); // see Impl.h
 
   // Returns the full name of this topic as it should appear in the topic hierarchy
   // using the current TopicOrder specified for the topic's group.
-  virtual String getFullTopic(); // see MQTTImpl.h
+  String getFullTopic(); // see Impl.h
 
   // Returns whether this topic has been changed since the last call to hasBeenChanged().
   // It makes no difference whether the topic has been changed via MQTT or by calling
   // the set() method or the assignment operator.
-  // Clears the flag indicating that the topic has been changed.
-  virtual bool hasBeenChanged() {
+  // Resets the changed flag to unchanged.
+  bool hasBeenChanged() {
     SIMPLEMQTT_CHECK_VALID(false);
     bool result = ((config >> CHANGED_BIT) & 1) == 1;
     config &= CHANGED_CLEARMASK;
@@ -285,25 +304,26 @@ public:
   // Returns whether this topic has been changed.
   // It makes no difference whether the topic has been changed via MQTT or by calling
   // the set() method or the assignment operator.
-  // Does not clears the flag indicating that the topic has been changed.
+  // Does not reset the changed flag.
   virtual bool hasBeenChanged(bool) const {
     SIMPLEMQTT_CHECK_VALID(false);
     return ((config >> CHANGED_BIT) & 1) == 1;
   };
 
+#ifdef SIMPLEMQTT_DEBUG_SERIAL
   // Prints information about this topic to the specified Print object.
   virtual size_t printTo(Print& p, size_t indent) const {
     size_t n = 0;
     for (size_t i = 0; i < indent; i++)
-      n += p.print(" ");
+      n += p.print(' ');
     if (name()[0] == '\0') {
       p.print(F("INVALID\n"));
     } else {
       n += p.print(type().c_str());
       n += p.print(name());
-      n += p.print(" (");
+      n += p.print(F(" ("));
       n += p.print(getConfigStr());
-      n += p.print("): ");
+      n += p.print(F("): "));
       n += p.print(getPayload());
       n += printExtras(p, indent);  // topic extras should not include newline
       n += p.println();
@@ -316,6 +336,7 @@ public:
   virtual inline size_t printTo(Print& p) const {
     return printTo(p, 0);
   };
+#endif
 };
 
 
@@ -369,6 +390,8 @@ public:
   };
 };
 
+#ifndef SIMPLEMQTT_OPTIMIZE_NO_SETTERS
+
 // Co-variant return type setters for the specified type.
 #define SIMPLEMQTT_OVERRIDE_SETTERS(TYPE) \
   inline TYPE& setQoS(uint8_t qos) override { \
@@ -391,6 +414,16 @@ public:
     MQTTTopic::setSettable(settable); \
     return *this; \
   };
+
+#else
+
+#define SIMPLEMQTT_OVERRIDE_SETTERS(TYPE) \
+  inline TYPE& setConfig(uint8_t newConfig) { \
+    MQTTTopic::setConfig(newConfig); \
+    return *this; \
+  };
+
+#endif  // SIMPLEMQTT_OPTIMIZE_NO_SETTERS
 
 // Co-variant return type setFormat() function for the specified type.
 #define SIMPLEMQTT_FORMAT_SETTER(TYPE, T) \

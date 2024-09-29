@@ -24,8 +24,8 @@ protected:
 
   inline String type() const override { 
     if constexpr (std::is_const_v<T>)
-      return String("!*"); 
-    return String("*"); 
+      return String(F("!*")); 
+    return String('*'); 
   };
 
   // for use in MQTTArray

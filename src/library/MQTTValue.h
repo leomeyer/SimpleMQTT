@@ -30,8 +30,8 @@ protected:
 
   inline String type() const override { 
     if constexpr (std::is_const_v<T>)
-      return String("!#"); 
-    return String("#"); 
+      return String(F("!#")); 
+    return String('#'); 
   };
 
   virtual void _setValue(T newValue) {
@@ -156,8 +156,10 @@ public:
   inline MQTTValue<T>& operator=(char* payload) { setFrom(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTValue<T>& operator=(const String& payload) { setFrom(payload.c_str()); return *this; };
+#if __has_include(<string>)
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
   inline MQTTValue<T>& operator=(const std::string& payload) { setFrom(payload.c_str()); return *this; };
+#endif  
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
   inline MQTTValue<T>& operator=(const __FlashStringHelper* payload) { setFrom((String() + payload).c_str()); return *this; };
 };

@@ -6,6 +6,7 @@
 /////////////////////////////////////////////////////////////////////
 
 // A SimpleMQTT topic that publishes the value of a function when requested.
+// Used for functions that have no argument.
 template<typename T>
 class MQTTGetFunction : public MQTTFormattedTopic<T> {
 friend class MQTTGroup;
@@ -41,7 +42,9 @@ struct mqtt_getfunction_type { typedef MQTTGetFunction<T>& type; };
 
 // set function
 
-// A SimpleMQTT topic that calls a function when set.
+// A SimpleMQTT topic that calls a function when set. Such a topic is not requestable.
+// Used for functions that have exactly one argument. The argument can be of any supported type.
+// When "setting" the topic the payload is converted to the target type and the function is invoked.
 template<typename T>
 class MQTTSetFunction : public MQTTFormattedTopic<T> {
 friend class MQTTGroup;
@@ -55,7 +58,7 @@ protected:
   SetFunction setFunction;
 
   MQTTSetFunction(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig, SetFunction aFunction)
-    : MQTTFormattedTopic<T>(aParent, aTopic, aConfig &= AUTO_PUBLISH_CLEARMASK),
+    : MQTTFormattedTopic<T>(aParent, aTopic, aConfig &= (AUTO_PUBLISH_CLEARMASK & REQUESTABLE_CLEARMASK)),
       setFunction(aFunction) {};
 
   inline String type() const override { 
@@ -86,10 +89,6 @@ public:
 
   bool isSettable() const override {
     return true;
-  };
-
-  bool isRequestable() const override {
-    return false;
   };
 
   // Calls the set function of this topic.
@@ -135,8 +134,10 @@ public:
   inline MQTTSetFunction<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTSetFunction<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
+#if __has_include(<string>)
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
   inline MQTTSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+#endif
   inline MQTTSetFunction<T>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
 };
 
@@ -236,8 +237,10 @@ public:
   inline MQTTGetSetFunction<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTGetSetFunction<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
+#if __has_include(<string>)
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
   inline MQTTGetSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+#endif
   inline MQTTGetSetFunction<T>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
 };
 
