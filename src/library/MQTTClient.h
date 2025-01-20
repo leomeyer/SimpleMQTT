@@ -39,8 +39,6 @@ protected:
   State previousState = State::DISCONNECTED;
   TopicOrder globalTopicOrder = DEFAULT_TOPIC_ORDER;
 
-  inline String type() const override { return String("$"); };
-
   MQTTGroup& parent() override {
     return *this;
   };
@@ -128,6 +126,8 @@ public:
   SimpleMQTTClient(Client& client, const char* clientName, const char* host, int port, __internal::_Topic topic, MQTTConfig config, bool clean, const char* user = nullptr, const char* password = nullptr)
     : PubSubClient(client), MQTTGroup(nullptr, topic, (uint8_t)config),
       mqttClientName(clientName), mqttHost(host), mqttPort(port), cleanSession(clean), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
+
+  inline String type() const override { return String("$"); };
 
   TopicOrder getTopicOrder() override {
     return globalTopicOrder;

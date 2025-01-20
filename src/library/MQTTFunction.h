@@ -18,11 +18,11 @@ protected:
     : MQTTFormattedTopic<T>(aParent, aTopic, aConfig &= AUTO_PUBLISH_CLEARMASK),
       getFunction(aFunction) {};
 
+public:
   inline String type() const override { 
     return String("(<)"); 
   };
 
-public:
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTGetFunction<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTGetFunction<T>, T)
 
@@ -58,10 +58,6 @@ protected:
     : MQTTFormattedTopic<T>(aParent, aTopic, aConfig &= AUTO_PUBLISH_CLEARMASK),
       setFunction(aFunction) {};
 
-  inline String type() const override { 
-    return String("(>)"); 
-  };
-
   // Always returns the default value of the data type.
   T value() const override {
     return T{};
@@ -81,6 +77,10 @@ protected:
   };
 
 public:
+  inline String type() const override { 
+    return String("(>)"); 
+  };
+
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTSetFunction<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTSetFunction<T>, T)
 
@@ -135,8 +135,8 @@ public:
   inline MQTTSetFunction<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTSetFunction<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
-  template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
-  inline MQTTSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+//  template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
+//  inline MQTTSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
   inline MQTTSetFunction<T>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
 };
 
@@ -167,10 +167,6 @@ protected:
     : MQTTFormattedTopic<T>(aParent, aTopic, aConfig),
       getFunction(aGetFunction), setFunction(aSetFunction) {};
 
-  inline String type() const override { 
-    return String("(<>)"); 
-  };
-
   void _set(T newValue) {
     setFunction(newValue);
   };
@@ -185,6 +181,10 @@ protected:
   };
 
 public:
+  inline String type() const override { 
+    return String("(<>)"); 
+  };
+
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTGetSetFunction<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTGetSetFunction<T>, T)
 
@@ -236,8 +236,8 @@ public:
   inline MQTTGetSetFunction<T>& operator=(char* payload) { setFromPayload(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTGetSetFunction<T>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
-  template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
-  inline MQTTGetSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+//  template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
+//  inline MQTTGetSetFunction<T>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
   inline MQTTGetSetFunction<T>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
 };
 

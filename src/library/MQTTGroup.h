@@ -26,10 +26,6 @@ protected:
   MQTTGroup(MQTTGroup* aParent, __internal::_Topic aTopic, uint8_t aConfig)
     : MQTTTopic(aParent, aTopic, aConfig){};
 
-  inline String type() const override {
-    return String("+");
-  };
-
   String getTopicPattern() override {
     String result;
     if (_parent != nullptr)
@@ -174,6 +170,10 @@ protected:
   virtual bool processPayload(SimpleMQTTClient* client, const char* topic, const char* payload) override;
 
 public:
+  inline String type() const override {
+    return String("+");
+  };
+
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTGroup)
 
   bool isSettable() const override {
@@ -379,14 +379,14 @@ public:
   struct always_false { static constexpr bool value = false; };
 
   template <typename... Ts>
-  MQTTTopic& addJsonTopic(Ts&&...) {
+  void addJsonTopic(Ts&&...) {
     static_assert(always_false<Ts...>::value,
       "To use Json functions please '#define SIMPLEMQTT_JSON_BUFFERSIZE 2048' or similar before including this library.");
   };
 #endif
 
   // Returns the number of child topics in this group.
-  const size_t size() const {
+  size_t size() const {
     SIMPLEMQTT_CHECK_VALID(0);
     const ListNode* node = &nodes;
     size_t c = 0;

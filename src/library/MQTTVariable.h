@@ -22,12 +22,6 @@ protected:
           MQTTValue<T>::_value = *valPtr;
       };
 
-  inline String type() const override { 
-    if constexpr (std::is_const_v<T>)
-      return String("!*"); 
-    return String("*"); 
-  };
-
   // for use in MQTTArray
   void setPointer(T* newPtr) {
     valuePtr = newPtr;
@@ -57,6 +51,12 @@ protected:
   };
 
 public:
+  inline String type() const override { 
+    if constexpr (std::is_const_v<T>)
+      return String("!*"); 
+    return String("*"); 
+  };
+
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTVariable<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTVariable<T>, T)
 

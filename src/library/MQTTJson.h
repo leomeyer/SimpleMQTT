@@ -58,9 +58,9 @@ public:
   auto operator[](const char* key) { return jdoc[key]; };
   auto operator[](char* key) { return jdoc[key]; };
   auto operator[](const String& key) { return jdoc[key]; };
-  auto operator[](const std::string& key) { return jdoc[key]; };
+//  auto operator[](const std::string& key) { return jdoc[key]; };
   auto operator[](const __FlashStringHelper* key) { return jdoc[key]; };
-  auto operator[](std::string_view key) { return jdoc[key]; };
+//  auto operator[](std::string_view key) { return jdoc[key]; };
   auto add() {
     return jdoc.add();
   };

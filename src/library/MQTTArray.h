@@ -15,23 +15,23 @@
 // set or retrieved using setSeparator() or getSeparator() respectively.
 template<typename T>
 class MQTTArray : public MQTTTopic {
-friend class MQTTGroup;
+  friend class MQTTGroup;
 
-protected:
-  typedef typename std::remove_pointer_t<T> E;
-  typedef ResultCode (*PayloadHandler)(MQTTArray<T>& object, const char* payload);
-  PayloadHandler payloadHandler = [](MQTTArray<T>& object, const char* payload) {
-    return object.setFromPayload(payload);
-  };
-  typename std::remove_const_t<T> array = nullptr;
-  size_t length = 0;
-  char separator = ',';
-  typename mqtt_variable<E>::type helper;  // conversion helper
+  protected:
+    typedef typename std::remove_pointer_t<T> E;
+    typedef ResultCode (*PayloadHandler)(MQTTArray<T>& object, const char* payload);
+    PayloadHandler payloadHandler = [](MQTTArray<T>& object, const char* payload) {
+      return object.setFromPayload(payload);
+    };
+    typename std::remove_const_t<T> array = nullptr;
+    size_t length = 0;
+    char separator = ',';
+    typename mqtt_variable<E>::type helper;  // conversion helper
 
-  template<typename E>
-  class ElementProxy {
-    MQTTArray<T>* parent;
-    size_t index;
+    template<typename E>
+    class ElementProxy {
+      MQTTArray<T>* parent;
+      size_t index;
 
   public:
     ElementProxy(MQTTArray<T>* aParent, size_t anIndex) : parent(aParent), index(anIndex) {}; 
@@ -75,8 +75,8 @@ protected:
     inline ElementProxy<E>& operator=(char* payload) { setFromPayload(payload); return *this; };
     template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
     inline ElementProxy<E>& operator=(const String& payload) { setFromPayload(payload.c_str()); return *this; };
-    template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
-    inline ElementProxy<E>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
+//    template<typename U = E, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
+//    inline ElementProxy<E>& operator=(const std::string& payload) { setFromPayload(payload.c_str()); return *this; };
     template<typename U = E, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
     inline ElementProxy<E>& operator=(const __FlashStringHelper* payload) { setFromPayload((String() + payload).c_str()); return *this; };
   };

@@ -28,12 +28,6 @@ protected:
       setFromPayload(str);
     };
 
-  inline String type() const override { 
-    if constexpr (std::is_const_v<T>)
-      return String("!#"); 
-    return String("#"); 
-  };
-
   virtual void _setValue(T newValue) {
     SIMPLEMQTT_CHECK_VALID();
     if constexpr (!std::is_const_v<T>)
@@ -55,6 +49,8 @@ protected:
     SIMPLEMQTT_CHECK_VALID(ResultCode::OUT_OF_MEMORY);
     if (MQTTTopic::isAutoPublish())
       MQTTTopic::republish();
+    if (payloadHandler != nullptr)
+      return payloadHandler(*this, payload);
     return setFrom(payload);
   };
 
@@ -75,6 +71,12 @@ protected:
   };
 
 public:
+  inline String type() const override { 
+    if constexpr (std::is_const_v<T>)
+      return String("!#"); 
+    return String("#"); 
+  };
+
   SIMPLEMQTT_OVERRIDE_SETTERS(MQTTValue<T>)
   SIMPLEMQTT_FORMAT_SETTER(MQTTValue<T>, T)
 
@@ -156,8 +158,8 @@ public:
   inline MQTTValue<T>& operator=(char* payload) { setFrom(payload); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<String, U>::value, bool>::type* = nullptr>
   inline MQTTValue<T>& operator=(const String& payload) { setFrom(payload.c_str()); return *this; };
-  template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
-  inline MQTTValue<T>& operator=(const std::string& payload) { setFrom(payload.c_str()); return *this; };
+//  template<typename U = T, typename std::enable_if<!std::is_const_v<U> && !std::is_same<std::string, U>::value, bool>::type* = nullptr>
+//  inline MQTTValue<T>& operator=(const std::string& payload) { setFrom(payload.c_str()); return *this; };
   template<typename U = T, typename std::enable_if<!std::is_const_v<U>, bool>::type* = nullptr> // only for non-const types
   inline MQTTValue<T>& operator=(const __FlashStringHelper* payload) { setFrom((String() + payload).c_str()); return *this; };
 };

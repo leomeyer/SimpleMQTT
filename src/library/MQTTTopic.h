@@ -40,8 +40,6 @@ protected:
       }
     };
 
-  virtual inline String type() const { return String(); };
-
   inline uint8_t getConfig() {
     SIMPLEMQTT_CHECK_VALID(0);
     return config;
@@ -111,10 +109,6 @@ protected:
     return nullptr;
   };
   
-  virtual void publish(bool all = false);
-
-  virtual void addSubscriptions(SimpleMQTTClient* client);
-
   virtual bool processPayload(SimpleMQTTClient* client, const char* topic, const char* payload);
 
   // Attempts to set this topic's value from the supplied payload string.
@@ -134,10 +128,16 @@ protected:
 public:
   static MQTTTopic INVALID_TOPIC;
 
+  virtual inline String type() const { return String(); };
+
   // Returns the group topic that this topic belongs to.
   virtual MQTTGroup& parent() {
     return *_parent;
   };
+
+  virtual void publish(bool all = false);
+
+  virtual void addSubscriptions(SimpleMQTTClient* client);
 
   // Returns the client used by this topic. May return nullptr.
   virtual SimpleMQTTClient* getClient();
