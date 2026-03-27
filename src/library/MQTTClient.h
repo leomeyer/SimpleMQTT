@@ -128,6 +128,10 @@ public:
       mqttClientName(clientName), mqttHost(host), mqttPort(port), cleanSession(clean), mqttUser(user), mqttPassword(password) { MQTTTopic::INVALID_TOPIC._parent = this; };
 
   inline String type() const override { return String("$"); };
+  
+  void setClientName(const char* clientName) {
+	  mqttClientName = clientName;
+  };
 
   TopicOrder getTopicOrder() override {
     return globalTopicOrder;
@@ -210,6 +214,7 @@ public:
     }
     json.concat(F("\"}"));
     statusTopic->set(json);
+    statusTopic->republish();
     return true;
   };
 
